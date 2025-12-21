@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import '../config.dart';
 import 'edit_profile_page.dart';
 import 'detail_post_page.dart';
-import 'detail_post_page.dart'; // Sesuaikan pathnya ya king
 
 class ProfilePage extends StatefulWidget {
   final int userId;
@@ -28,6 +27,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   double _gridHeight = 1000;
 
   // Header Title Dinamis
+  // ignore: unused_field
   String _headerTitle = "Creations";
 
   @override
@@ -237,24 +237,36 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                         padding: const EdgeInsets.only(top: 15),
                                         child: Text(bio, style: TextStyle(color: Colors.grey.shade700, fontSize: 38)),
                                       ),
-                                    const SizedBox(height: 60),
+                                    const SizedBox(height: 50),
                                     Row(
+                                      // 👇 1. ATUR POSISI KELOMPOK DISINI (Center, Start, End, SpaceEvenly)
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        _buildStatItem(
-                                          _tabController.index == 2
-                                              ? _savedPosts.length.toString()
-                                              : _userProfile!['stats']['posts'].toString(),
-                                          _headerTitle,
+                                        // ITEM 1: POST
+                                        Expanded(
+                                          child: _buildStatItem(
+                                            _userProfile!['stats']['posts'].toString(),
+                                            "Creations",
+                                          ),
                                         ),
-                                        const SizedBox(width: 105),
+                                        const SizedBox(width: 90),
                                         Container(height: 100, width: 5, color: Colors.grey.shade300),
-                                        const SizedBox(width: 105),
-                                        _buildStatItem(_userProfile!['stats']['followers'].toString(), "Followers"),
-                                        const SizedBox(width: 105),
+                                        const SizedBox(width: 90),
+                                        Expanded(
+                                          child: _buildStatItem(
+                                            _userProfile!['stats']['followers'].toString(),
+                                            "Followers",
+                                          ),
+                                        ),
+                                        const SizedBox(width: 90),
                                         Container(height: 100, width: 5, color: Colors.grey.shade300),
-                                        const SizedBox(width: 105),
-                                        _buildStatItem(_userProfile!['stats']['following'].toString(), "Followings"),
+                                        const SizedBox(width: 90),
+                                        Expanded(
+                                          child: _buildStatItem(
+                                            _userProfile!['stats']['following'].toString(),
+                                            "Followings",
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     const SizedBox(height: 50),
@@ -432,7 +444,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     ),
                     const SizedBox(width: 30),
                     Text(
-                      _headerTitle,
+                      username,
                       style: const TextStyle(
                         fontSize: 50,
                         fontWeight: FontWeight.bold,
@@ -512,55 +524,4 @@ class _SafeTabBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_SafeTabBarDelegate oldDelegate) => false;
-}
-
-// -------------------------------------------------------------------------
-// 👇 INI WIDGET BARU BUAT VISIT / DETAIL PAGE (PLACEHOLDER) 👇
-// Nanti King bisa isi codingan UI detailnya di dalam sini
-// -------------------------------------------------------------------------
-
-class CreationDetailView extends StatelessWidget {
-  final Map<String, dynamic> postData;
-  const CreationDetailView({super.key, required this.postData});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Creation Detail")),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text("Ini Halaman Detail CREATION", style: TextStyle(fontSize: 24)),
-            const SizedBox(height: 20),
-            // Contoh nampilin gambar yang diklik
-            CachedNetworkImage(imageUrl: postData['image_url'], height: 300),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class SavedDetailView extends StatelessWidget {
-  final Map<String, dynamic> postData;
-  const SavedDetailView({super.key, required this.postData});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Saved Post Detail")),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text("Ini Halaman Detail SAVED", style: TextStyle(fontSize: 24)),
-            const SizedBox(height: 20),
-            // Contoh nampilin gambar yang diklik
-            CachedNetworkImage(imageUrl: postData['image_url'], height: 300),
-          ],
-        ),
-      ),
-    );
-  }
 }

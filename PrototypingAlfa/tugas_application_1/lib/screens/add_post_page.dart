@@ -24,6 +24,7 @@ class _AddPostPageState extends State<AddPostPage> {
   AssetPathEntity? _currentAlbum; // Folder yang sedang aktif sekarang
   bool _isNewestFirst = true;
   bool _isMenuOpen = false;
+  // ignore: unused_field
   File? _finalImageFile;
   ScrollPhysics _pageScrollPhysics = const BouncingScrollPhysics();
   final TransformationController _cropController = TransformationController();
@@ -353,6 +354,7 @@ class _AddPostPageState extends State<AddPostPage> {
     );
   }
 
+  // ignore: unused_element
   void _showAlbumSelector() {
     showModalBottomSheet(
       context: context,
@@ -409,6 +411,7 @@ class _AddPostPageState extends State<AddPostPage> {
   }
 
   // Fungsi bikin garis grid tipis
+  // ignore: unused_element
   Widget _buildLine({required bool vertical}) {
     return Container(
       width: vertical ? 1 : double.infinity,
