@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart'; // 1. IMPORT INI
 import '../widgets/custom_navbar.dart';
 import 'home_page.dart';
 import 'add_post_page.dart';
@@ -16,8 +17,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  // 🔥 1. BIKIN REMOTE CONTROL (GLOBAL KEY) 🔥
-  // Pastikan class di HomePage namanya 'HomePageState' (tanpa underscore) sesuai Langkah 1
+  // REMOTE CONTROL (GLOBAL KEY)
   final GlobalKey<HomePageState> homeKey = GlobalKey<HomePageState>();
 
   late List<Widget> _pages;
@@ -26,11 +26,14 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _pages = [
-      // 🔥 2. PASANG REMOTE CONTROL DI SINI (key: homeKey) 🔥
+      // Index 0: Home Page
       HomePage(
-        key: homeKey, // <-- INI PENTING!
+        key: homeKey,
         username: widget.username,
         userId: widget.userId,
+        onNavigateToProfileTab: () {
+          _onItemTapped(4);
+        },
       ),
 
       // Index 1: Community
@@ -56,10 +59,8 @@ class _MainScreenState extends State<MainScreen> {
       _currentIndex = index;
     });
 
-    // 🔥 3. LOGIC SAKTI: REFRESH HOME SAAT TOMBOL RUMAH DITEKAN 🔥
+    // LOGIC REFRESH HOME
     if (index == 0) {
-      // "Halo HomePage, tolong jalankan perintah fetchPosts() sekarang!"
-      // Kita kasih delay dikit (100ms) biar transisi halusnya jalan dulu
       Future.delayed(const Duration(milliseconds: 100), () {
         homeKey.currentState?.fetchPosts();
       });
@@ -70,28 +71,26 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Center(
-        child: FittedBox(
-          fit: BoxFit.cover,
-          child: SizedBox(
-            width: 1080,
-            height: 2424,
-            child: Stack(
-              children: [
-                // Layer Bawah: Konten Halaman
-                Positioned.fill(
-                  child: IndexedStack(index: _currentIndex, children: _pages),
-                ),
-
-                // Layer Atas: Navbar
-                Positioned(
-                  left: 0,
-                  bottom: 0,
-                  child: CustomNavbar(selectedIndex: _currentIndex, onItemTapped: _onItemTapped),
-                ),
-              ],
+      // 🔥 HAPUS FittedBox & SizedBox(1080, 2424)
+      // Ganti jadi Full Screen Responsif
+      body: SizedBox(
+        width: 1.sw, // 100% Lebar Layar
+        height: 1.sh, // 100% Tinggi Layar
+        child: Stack(
+          children: [
+            // Layer Bawah: Konten Halaman
+            Positioned.fill(
+              child: IndexedStack(index: _currentIndex, children: _pages),
             ),
-          ),
+
+            // Layer Atas: Navbar
+            Positioned(
+              left: 0,
+              right: 0, // Tambah Right 0 biar center/full width
+              bottom: 0,
+              child: CustomNavbar(selectedIndex: _currentIndex, onItemTapped: _onItemTapped),
+            ),
+          ],
         ),
       ),
     );

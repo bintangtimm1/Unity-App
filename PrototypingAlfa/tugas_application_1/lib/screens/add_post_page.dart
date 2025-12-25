@@ -1,10 +1,14 @@
 import 'dart:io';
+import 'dart:ui' as ui;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart'; // Wajib buat RepaintBoundary
+import 'package:path_provider/path_provider.dart'; // Wajib ada di pubspec.yaml
 import 'package:photo_manager/photo_manager.dart';
 import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
-import '../widgets/post_crop_preview.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import '../widgets/post_crop_preview.dart'; // Pastikan ini pakai file yang sudah diperbaiki (Dynamic Canvas)
 import 'post_upload_page.dart';
-import 'package:http/http.dart' as http;
 
 class AddPostPage extends StatefulWidget {
   final int userId;
@@ -18,16 +22,20 @@ class _AddPostPageState extends State<AddPostPage> {
   // --- VARIABLES ---
   List<AssetEntity> _mediaList = [];
   AssetEntity? _selectedEntity;
-  // ignore: unused_field
-  bool _isCoverMode = true;
-  List<AssetPathEntity> _albumList = []; // Daftar semua folder (Camera, WA, dll)
-  AssetPathEntity? _currentAlbum; // Folder yang sedang aktif sekarang
+  bool _isCoverMode = true; // true = Square (1:1), false = Portrait (4:5)
+  List<AssetPathEntity> _albumList = [];
+  AssetPathEntity? _currentAlbum;
   bool _isNewestFirst = true;
   bool _isMenuOpen = false;
-  // ignore: unused_field
-  File? _finalImageFile;
+  bool _isProcessing = false; // Loading state saat cropping
+
   ScrollPhysics _pageScrollPhysics = const BouncingScrollPhysics();
+
+  // Controller ini dipakai BERSAMA oleh Layer Depan & Belakang
   final TransformationController _cropController = TransformationController();
+
+  // Key khusus untuk menangkap gambar di Layer Belakang
+  final GlobalKey _cleanCropKey = GlobalKey();
 
   @override
   void initState() {
@@ -35,22 +43,13 @@ class _AddPostPageState extends State<AddPostPage> {
     _fetchNewMedia();
   }
 
-  // --- FUNGSI 1: AMBIL FOTO ---
   Future<void> _fetchNewMedia() async {
     await PhotoManager.requestPermissionExtend();
     try {
-      // 1. Ambil SEMUA Album (hasAll: true artinya termasuk folder "Recent")
-      List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
-        type: RequestType.image,
-        hasAll: true, // Wajib true biar folder "Semua Foto" muncul
-      );
-
+      List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(type: RequestType.image, hasAll: true);
       if (albums.isNotEmpty) {
-        // 2. Default-nya pilih album pertama (biasanya Recents)
         _currentAlbum = albums[0];
         _albumList = albums;
-
-        // 3. Load foto dari album yang dipilih
         await _loadPhotosFromCurrentAlbum();
       }
     } catch (e) {
@@ -58,393 +57,302 @@ class _AddPostPageState extends State<AddPostPage> {
     }
   }
 
-  // Fungsi khusus buat load foto dari album yang sedang aktif (_currentAlbum)
   Future<void> _loadPhotosFromCurrentAlbum() async {
     if (_currentAlbum == null) return;
-
-    // Ambil foto (Default photo_manager selalu ambil dari terbaru)
     List<AssetEntity> photos = await _currentAlbum!.getAssetListPaged(page: 0, size: 100);
-
-    // --- LOGIKA SORTIR ---
-    if (!_isNewestFirst) {
-      // Kalau user minta Terlama, kita balik urutannya
-      photos = photos.reversed.toList();
-    }
+    if (!_isNewestFirst) photos = photos.reversed.toList();
 
     setState(() {
       _mediaList = photos;
-      if (_mediaList.isNotEmpty) {
+      if (_mediaList.isNotEmpty && _selectedEntity == null) {
         _selectedEntity = _mediaList[0];
       }
     });
   }
 
-  // --- FUNGSI 2: TOMBOL NEXT ---
-  // --- FUNGSI TOMBOL NEXT ---
-  void _onNextPressed() {
-    // Cek: Apakah user sudah memilih foto?
-    if (_selectedEntity != null) {
-      // Kalau ada, pindah ke halaman Upload
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PostUploadPage(
-            entity: _selectedEntity!, // Bawa fotonya
-            isSquareMode: _isCoverMode,
-            cropMatrix: _cropController.value,
-            userId: widget.userId, // Bawa status crop-nya
+  // 🔥 FUNGSI UTAMA: JALANKAN CROP & PINDAH HALAMAN
+  Future<void> _cropAndNavigate() async {
+    if (_selectedEntity == null || _isProcessing) return;
+    setState(() => _isProcessing = true);
+
+    try {
+      // 1. Cari Widget 'Layer Belakang' yang bersih
+      RenderRepaintBoundary? boundary = _cleanCropKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) throw Exception("Gagal merender crop");
+
+      // 2. Foto widget tersebut dengan resolusi tinggi (pixelRatio 3.0 biar tajam)
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      Uint8List pngBytes = byteData!.buffer.asUint8List();
+
+      // 3. Simpan hasil foto ke file sementara (.png)
+      final directory = await getTemporaryDirectory();
+      final imagePath = await File(
+        '${directory.path}/clean_crop_${DateTime.now().millisecondsSinceEpoch}.png',
+      ).create();
+      await imagePath.writeAsBytes(pngBytes);
+
+      // 4. Kirim FILE MATANG ke PostUploadPage
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PostUploadPage(
+              imageFile: imagePath, // Kita kirim File, bukan data mentah lagi
+              isSquareMode: _isCoverMode,
+              userId: widget.userId,
+            ),
           ),
-        ),
-      );
-    } else {
-      // Opsional: Kasih pesan kalau belum pilih foto
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pilih foto dulu ya!")));
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Definisi tinggi area berdasarkan desain Figma kamu
-    // Header Page: 0 - 285
-    // Preview Image: 285 - 1365 (Tinggi 1080)
-    // Sticky Header (Gallery controls): 1365 - 1499 (Tinggi 134)
-
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Center(
-        child: FittedBox(
-          fit: BoxFit.cover,
-          child: SizedBox(
-            width: 1080,
-            height: 2424,
-            child: Column(
-              children: [
-                // ==========================================
-                // 1. FIXED APP HEADER (DIAM DI ATAS)
-                // ==========================================
-                SizedBox(
-                  width: 1080,
-                  height: 290, // Tinggi header sesuai layout kamu (sebelum preview mulai)
-                  child: Stack(
-                    children: [
-                      // Background Header
-                      Positioned(
-                        left: 0,
-                        top: 20,
-                        width: 1080,
-                        child: Image.asset('assets/images/Header Post Page.png', fit: BoxFit.fill),
-                      ),
-                      // Tombol Next
-                      Positioned(
-                        left: 880,
-                        top: 162,
-                        width: 130,
-                        child: GestureDetector(
-                          onTap: _onNextPressed,
-                          child: Image.asset('assets/images/Next_post_button.png', fit: BoxFit.fill),
-                        ),
-                      ),
-                    ],
-                  ),
+      body: SizedBox(
+        width: 1.sw,
+        height: 1.sh,
+        child: Stack(
+          children: [
+            // ============================================================
+            // 🔥 LAYER 0 (BELAKANG): SI KEMBAR POLOS (GHOST WIDGET)
+            // Ini tidak terlihat user (ketutup Layer 1), tapi ini yang kita FOTO.
+            // Ukurannya DINAMIS (Square / Portrait) biar hasil crop akurat.
+            // ============================================================
+            Positioned(
+              left: 0,
+              top: 0,
+              // Kita taruh di luar layar atau tumpuk di bawah.
+              // RepaintBoundary tetap bekerja walaupun ketutup widget lain.
+              child: RepaintBoundary(
+                key: _cleanCropKey, // <--- CCTV KITA DISINI
+                child: Container(
+                  width: 1.sw,
+                  // Tinggi mengikuti mode: 1.sw (Kotak) atau 1.25.sw (Portrait)
+                  height: _isCoverMode ? 1.sw : 1.25.sw,
+                  color: Colors.white,
+                  // Isi kontennya SAMA PERSIS dengan preview user
+                  child: _selectedEntity != null
+                      ? PostCropPreview(
+                          entity: _selectedEntity!,
+                          isSquareMode: _isCoverMode,
+                          controller: _cropController, // Pakai controller SAMA biar gerakannya sinkron
+                          readOnly: true, // ReadOnly = Gak ada grid/tombol/indikator scroll
+                        )
+                      : const SizedBox(),
                 ),
+              ),
+            ),
 
-                // ==========================================
-                // 2. SCROLLABLE AREA (TENGAH & BAWAH)
-                // ==========================================
-                Expanded(
-                  child: CustomScrollView(
-                    physics: _pageScrollPhysics, // Efek mantul
-                    slivers: [
-                      // A. BAGIAN PREVIEW (CROP & ADJUST)
-                      SliverToBoxAdapter(
-                        child: _selectedEntity == null
-                            ? const SizedBox(height: 1080, child: Center(child: CircularProgressIndicator()))
-                            : PostCropPreview(
-                                entity: _selectedEntity!,
-                                isSquareMode: _isCoverMode, // Kirim status mode
-                                controller: _cropController,
-                                // Callback saat tombol resize diklik
-                                onToggleMode: () {
-                                  setState(() {
-                                    _isCoverMode = !_isCoverMode;
-                                  });
-                                },
-
-                                // Callback untuk kunci/buka scroll halaman
-                                onScrollLock: (isLocked) {
-                                  setState(() {
-                                    _pageScrollPhysics = isLocked
-                                        ? const NeverScrollableScrollPhysics()
-                                        : const BouncingScrollPhysics();
-                                  });
-                                },
-                              ),
-                      ),
-                      // B. STICKY HEADER GALLERY (NEMPEL SAAT SCROLL)
-                      SliverPersistentHeader(
-                        pinned: true, // INI KUNCINYA AGAR NEMPEL
-                        delegate: _StickyHeaderDelegate(
-                          minHeight: 134, // Tinggi area header gallery (1499 - 1365)
-                          maxHeight: 134,
-                          child: Container(
-                            color: Colors.white, // Background putih biar nutup gambar pas scroll
-                            child: Stack(
-                              children: [
-                                // Header Gallery BG
-                                Positioned(
-                                  left: 0,
-                                  top: 0, // Reset ke 0 karena ini container baru
-                                  width: 1080,
-                                  child: Image.asset('assets/images/Header_gallery.png', fit: BoxFit.fill),
-                                ),
-                                // Sort Button
-                                Positioned(
-                                  left: 93,
-                                  top: 35,
-                                  child: PopupMenuButton<dynamic>(
-                                    // Ganti GestureDetector jadi ini
-                                    offset: const Offset(140, 50),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                                    color: const Color.fromARGB(255, 255, 255, 255),
-                                    elevation: 4,
-
-                                    onOpened: () {
-                                      setState(() => _isMenuOpen = true); // Menu Buka -> Panah Bawah
-                                    },
-                                    onCanceled: () {
-                                      setState(() => _isMenuOpen = false); // Batal -> Panah Kanan
-                                    },
-
-                                    // ISI MENU (Terbaru, Terlama, Album List)
-                                    itemBuilder: (BuildContext context) {
-                                      return [
-                                        // OPSI 1: TERBARU
-                                        PopupMenuItem(
-                                          value: 'newest',
-                                          height: 35,
-                                          child: Row(
-                                            children: [
-                                              Text(
-                                                "Oldest",
-                                                style: TextStyle(
-                                                  fontSize: 15,
-                                                  color: _isNewestFirst ? Colors.blue : Colors.black,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        // OPSI 2: TERLAMA
-                                        PopupMenuItem(
-                                          value: 'oldest',
-                                          height: 35,
-                                          child: Row(
-                                            children: [
-                                              Text(
-                                                "Newest",
-                                                style: TextStyle(
-                                                  fontSize: 15,
-                                                  color: !_isNewestFirst ? Colors.blue : Colors.black,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const PopupMenuDivider(height: 10),
-
-                                        // OPSI 3: LIST ALBUM (Looping dari variable)
-                                        ..._albumList.map((album) {
-                                          return PopupMenuItem(
-                                            value: album,
-                                            height: 35,
-                                            child: Text(
-                                              album.name,
-                                              style: TextStyle(
-                                                fontSize: 15,
-                                                fontWeight: _currentAlbum == album
-                                                    ? FontWeight.bold
-                                                    : FontWeight.normal,
-                                              ),
-                                            ),
-                                          );
-                                        }),
-                                      ];
-                                    },
-
-                                    // LOGIKA SAAT DIPILIH
-                                    onSelected: (value) {
-                                      setState(() => _isMenuOpen = false); // Dipilih -> Panah Kanan
-
-                                      // ... Logika lama kamu di sini ...
-                                      if (value == 'newest') {
-                                        setState(() => _isNewestFirst = true);
-                                        _loadPhotosFromCurrentAlbum();
-                                      } else if (value == 'oldest') {
-                                        setState(() => _isNewestFirst = false);
-                                        _loadPhotosFromCurrentAlbum();
-                                      } else if (value is AssetPathEntity) {
-                                        setState(() => _currentAlbum = value);
-                                        _loadPhotosFromCurrentAlbum();
-                                      }
-                                    },
-
-                                    // TAMPILAN TOMBOLNYA (Row text + Icon panah)
-                                    child: Row(
-                                      // <--- INI ROW YANG TADI, SEKARANG JADI CHILD DARI POPUP
-                                      children: [
-                                        Text(
-                                          _currentAlbum?.name ?? "Recent",
-                                          style: const TextStyle(
-                                            fontSize: 40,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.black,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 5),
-                                        Icon(
-                                          _isMenuOpen ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
-                                          size: 40,
-                                          color: Colors.black,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
+            // ============================================================
+            // 🔥 LAYER 1 (DEPAN): UI VISUAL (INTERAKTIF)
+            // Ini yang dilihat user (ada Header, Tombol, Grid Gallery, dll).
+            // Background putihnya menutupi Layer 0.
+            // ============================================================
+            Positioned.fill(
+              child: Container(
+                color: Colors.white, // Nutupin Layer 0
+                child: Column(
+                  children: [
+                    // --- HEADER (FIXED) ---
+                    SizedBox(
+                      width: 1.sw,
+                      height: 290.h,
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            left: 0,
+                            top: 20.h,
+                            width: 1.sw,
+                            child: Image.asset('assets/images/Header Post Page.png', fit: BoxFit.fitWidth),
+                          ),
+                          Positioned(
+                            left: 880.w,
+                            top: 162.h,
+                            width: 130.w,
+                            child: GestureDetector(
+                              onTap: _cropAndNavigate, // KLIK NEXT -> JEPRET LAYER 0
+                              child: _isProcessing
+                                  ? const Center(child: CircularProgressIndicator())
+                                  : Image.asset('assets/images/Next_post_button.png', fit: BoxFit.fitWidth),
                             ),
                           ),
-                        ),
+                        ],
                       ),
+                    ),
 
-                      // C. GRID GALLERY (BAWAH)
-                      SliverGrid(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          final asset = _mediaList[index];
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedEntity = asset;
-                              });
-                            },
-                            child: AssetEntityImage(
-                              asset,
-                              isOriginal: false, // Thumbnail
-                              thumbnailSize: const ThumbnailSize.square(200),
-                              fit: BoxFit.cover,
+                    // --- KONTEN SCROLLABLE ---
+                    Expanded(
+                      child: CustomScrollView(
+                        physics: _pageScrollPhysics,
+                        slivers: [
+                          // A. PREVIEW CROP (INTERAKTIF)
+                          SliverToBoxAdapter(
+                            child: _selectedEntity == null
+                                ? SizedBox(
+                                    height: 1.sw,
+                                    child: const Center(child: CircularProgressIndicator()),
+                                  )
+                                : AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                    width: 1.sw,
+                                    // Visual ikut berubah (Square/Portrait) biar user tau bakal seberapa gedenya
+                                    height: _isCoverMode ? 1.sw : 1.25.sw,
+                                    color: Colors.white,
+
+                                    child: PostCropPreview(
+                                      entity: _selectedEntity!,
+                                      isSquareMode: _isCoverMode,
+                                      controller: _cropController, // Menggerakkan Layer 0 juga secara otomatis
+                                      onToggleMode: () => setState(() => _isCoverMode = !_isCoverMode),
+                                      onScrollLock: (isLocked) => setState(
+                                        () => _pageScrollPhysics = isLocked
+                                            ? const NeverScrollableScrollPhysics()
+                                            : const BouncingScrollPhysics(),
+                                      ),
+                                    ),
+                                  ),
+                          ),
+
+                          // B. HEADER GALLERY
+                          SliverPersistentHeader(
+                            pinned: true,
+                            delegate: _StickyHeaderDelegate(
+                              minHeight: 134.h,
+                              maxHeight: 134.h,
+                              child: Container(
+                                color: Colors.white,
+                                child: Stack(
+                                  children: [
+                                    Positioned(
+                                      left: 0,
+                                      top: 0,
+                                      width: 1.sw,
+                                      child: Image.asset('assets/images/Header_gallery.png', fit: BoxFit.fitWidth),
+                                    ),
+                                    // ... (Kode Dropdown Sort Sama Saja) ...
+                                    Positioned(
+                                      left: 93.w,
+                                      top: 35.h,
+                                      child: PopupMenuButton<dynamic>(
+                                        offset: Offset(140.w, 50.h),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)),
+                                        color: Colors.white,
+                                        elevation: 4,
+                                        onOpened: () => setState(() => _isMenuOpen = true),
+                                        onCanceled: () => setState(() => _isMenuOpen = false),
+                                        itemBuilder: (context) => [
+                                          PopupMenuItem(
+                                            value: 'newest',
+                                            height: 35.h,
+                                            child: Text("Oldest", style: TextStyle(fontSize: 35.sp)),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'oldest',
+                                            height: 35.h,
+                                            child: Text("Newest", style: TextStyle(fontSize: 35.sp)),
+                                          ),
+                                          const PopupMenuDivider(),
+                                          ..._albumList.map(
+                                            (album) => PopupMenuItem(
+                                              value: album,
+                                              height: 35.h,
+                                              child: Text(album.name, style: TextStyle(fontSize: 35.sp)),
+                                            ),
+                                          ),
+                                        ],
+                                        onSelected: (value) {
+                                          setState(() => _isMenuOpen = false);
+                                          if (value == 'newest') {
+                                            setState(() => _isNewestFirst = true);
+                                            _loadPhotosFromCurrentAlbum();
+                                          } else if (value == 'oldest') {
+                                            setState(() => _isNewestFirst = false);
+                                            _loadPhotosFromCurrentAlbum();
+                                          } else if (value is AssetPathEntity) {
+                                            setState(() => _currentAlbum = value);
+                                            _loadPhotosFromCurrentAlbum();
+                                          }
+                                        },
+                                        child: Row(
+                                          children: [
+                                            Text(
+                                              _currentAlbum?.name ?? "Recent",
+                                              style: TextStyle(fontSize: 40.sp, fontWeight: FontWeight.bold),
+                                            ),
+                                            Icon(
+                                              _isMenuOpen ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+                                              size: 40.sp,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          );
-                        }, childCount: _mediaList.length),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 4,
-                          crossAxisSpacing: 2,
-                          mainAxisSpacing: 2,
-                        ),
-                      ),
+                          ),
 
-                      // Tambahan space bawah biar enak scrollnya (Opsional)
-                      const SliverToBoxAdapter(child: SizedBox(height: 270)),
-                    ],
-                  ),
+                          // C. GRID GALLERY
+                          SliverGrid(
+                            delegate: SliverChildBuilderDelegate((context, index) {
+                              final asset = _mediaList[index];
+                              return GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedEntity = asset;
+                                    _cropController.value = Matrix4.identity(); // Reset Zoom saat ganti foto
+                                  });
+                                },
+                                child: AssetEntityImage(
+                                  asset,
+                                  isOriginal: false,
+                                  thumbnailSize: const ThumbnailSize.square(200),
+                                  fit: BoxFit.cover,
+                                ),
+                              );
+                            }, childCount: _mediaList.length),
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 4,
+                              crossAxisSpacing: 2.w,
+                              mainAxisSpacing: 2.h,
+                            ),
+                          ),
+                          SliverToBoxAdapter(child: SizedBox(height: 270.h)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
-      ),
-    );
-  }
-
-  // ignore: unused_element
-  void _showAlbumSelector() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(40))),
-      builder: (context) {
-        return Container(
-          height: 1000, // Tinggi sheet (bisa diatur)
-          padding: const EdgeInsets.only(top: 30),
-          child: Column(
-            children: [
-              // Judul Sheet
-              Container(
-                width: 100,
-                height: 10,
-                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
-              ),
-              const SizedBox(height: 30),
-
-              // Daftar Album
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _albumList.length,
-                  itemBuilder: (context, index) {
-                    final album = _albumList[index];
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
-                      title: Text(
-                        album.name, // Nama Album (Camera, WhatsApp, dll)
-                        style: const TextStyle(fontSize: 35, fontWeight: FontWeight.w500),
-                      ),
-                      subtitle: FutureBuilder<int>(
-                        future: album.assetCountAsync, // Hitung jumlah foto
-                        builder: (context, snapshot) =>
-                            Text("${snapshot.data ?? 0} Photos", style: TextStyle(fontSize: 25, color: Colors.grey)),
-                      ),
-                      onTap: () {
-                        // Saat album dipilih:
-                        setState(() {
-                          _currentAlbum = album; // Ganti album aktif
-                        });
-                        _loadPhotosFromCurrentAlbum(); // Load foto baru
-                        Navigator.pop(context); // Tutup pop-up
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // Fungsi bikin garis grid tipis
-  // ignore: unused_element
-  Widget _buildLine({required bool vertical}) {
-    return Container(
-      width: vertical ? 1 : double.infinity,
-      height: vertical ? double.infinity : 1,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 2, spreadRadius: 0)],
       ),
     );
   }
 }
 
-// --- KELAS PEMBANTU UNTUK STICKY HEADER ---
 class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   final double minHeight;
   final double maxHeight;
   final Widget child;
-
   _StickyHeaderDelegate({required this.minHeight, required this.maxHeight, required this.child});
-
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return SizedBox.expand(child: child);
-  }
-
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => SizedBox.expand(child: child);
   @override
   double get maxExtent => maxHeight;
-
   @override
   double get minExtent => minHeight;
-
   @override
-  bool shouldRebuild(_StickyHeaderDelegate oldDelegate) {
-    return maxHeight != oldDelegate.maxHeight || minHeight != oldDelegate.minHeight || child != oldDelegate.child;
-  }
+  bool shouldRebuild(_StickyHeaderDelegate oldDelegate) => true;
 }

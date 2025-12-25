@@ -9,7 +9,6 @@ class PostCropPreview extends StatefulWidget {
   final Function(bool)? onScrollLock;
   final TransformationController? controller;
   final bool readOnly;
-  // PARAMETER RADIUS DIHAPUS DARI SINI
 
   const PostCropPreview({
     super.key,
@@ -29,20 +28,31 @@ class _PostCropPreviewState extends State<PostCropPreview> with SingleTickerProv
   late TransformationController _transformController;
   bool _isInteracting = false;
 
+  static const double kBaseWidth = 1080.0;
+  static const double kBaseHeightSquare = 1080.0;
+  static const double kBaseHeightPortrait = 1350.0;
+
   @override
   void initState() {
     super.initState();
     _transformController = widget.controller ?? TransformationController();
+    // Aman karena ini emang udah di post frame callback dari sananya
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _centerImage();
+      if (mounted) _centerImage();
     });
   }
 
   @override
   void didUpdateWidget(covariant PostCropPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    // 🔥 PERBAIKAN DISINI KING! 🔥
+    // Kalau ada perubahan (ganti mode atau ganti gambar), jangan langsung _centerImage().
+    // Tunggu frame selesai dulu biar gak tabrakan sama proses Build.
     if (widget.entity != oldWidget.entity || widget.isSquareMode != oldWidget.isSquareMode) {
-      _centerImage();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _centerImage();
+      });
     }
   }
 
@@ -53,20 +63,22 @@ class _PostCropPreviewState extends State<PostCropPreview> with SingleTickerProv
     double imgHeight = widget.entity.height.toDouble();
     double imgRatio = imgWidth / imgHeight;
 
-    double targetFrameRatio = widget.isSquareMode ? 1.0 : imgRatio;
-    if (!widget.isSquareMode && targetFrameRatio < 0.8) targetFrameRatio = 0.8;
+    double canvasHeight = widget.isSquareMode ? kBaseHeightSquare : kBaseHeightPortrait;
+    double targetFrameRatio = widget.isSquareMode ? 1.0 : 0.8;
 
     double displayWidth, displayHeight;
+
     if (targetFrameRatio >= 1.0) {
-      displayWidth = 1080;
-      displayHeight = 1080 / targetFrameRatio;
+      displayWidth = kBaseWidth;
+      displayHeight = kBaseWidth / targetFrameRatio;
     } else {
-      displayHeight = 1080;
-      displayWidth = 1080 * targetFrameRatio;
+      displayWidth = kBaseWidth;
+      displayHeight = kBaseWidth / targetFrameRatio;
     }
 
     double contentWidth = displayWidth;
     double contentHeight = displayWidth / imgRatio;
+
     if (contentHeight < displayHeight) {
       contentHeight = displayHeight;
       contentWidth = displayHeight * imgRatio;
@@ -75,6 +87,7 @@ class _PostCropPreviewState extends State<PostCropPreview> with SingleTickerProv
     double dx = (contentWidth - displayWidth) / 2;
     double dy = (contentHeight - displayHeight) / 2;
 
+    // Reset posisi ke tengah
     _transformController.value = Matrix4.identity()..translate(-dx, -dy);
   }
 
@@ -84,16 +97,18 @@ class _PostCropPreviewState extends State<PostCropPreview> with SingleTickerProv
     double imgHeight = widget.entity.height.toDouble();
     double imgRatio = imgWidth / imgHeight;
 
-    double targetFrameRatio = widget.isSquareMode ? 1.0 : imgRatio;
-    if (!widget.isSquareMode && targetFrameRatio < 0.8) targetFrameRatio = 0.8;
+    double canvasWidth = kBaseWidth;
+    double canvasHeight = widget.isSquareMode ? kBaseHeightSquare : kBaseHeightPortrait;
+
+    double targetFrameRatio = widget.isSquareMode ? 1.0 : 0.8;
 
     double displayWidth, displayHeight;
     if (targetFrameRatio >= 1.0) {
-      displayWidth = 1080;
-      displayHeight = 1080 / targetFrameRatio;
+      displayWidth = kBaseWidth;
+      displayHeight = kBaseWidth / targetFrameRatio;
     } else {
-      displayHeight = 1080;
-      displayWidth = 1080 * targetFrameRatio;
+      displayWidth = kBaseWidth;
+      displayHeight = kBaseWidth / targetFrameRatio;
     }
 
     double contentWidth = displayWidth;
@@ -107,22 +122,18 @@ class _PostCropPreviewState extends State<PostCropPreview> with SingleTickerProv
       fit: BoxFit.contain,
       alignment: Alignment.center,
       child: Container(
-        width: 1080,
-        height: 1080,
+        width: canvasWidth,
+        height: canvasHeight,
         color: Colors.white,
         child: Stack(
           children: [
             Center(
-              // FRAME GAMBAR KEMBALI TAJAM (NORMAL)
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeInOut,
                 width: displayWidth,
                 height: displayHeight,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF0F0F0),
-                  // TIDAK ADA BORDER RADIUS DISINI
-                ),
+                decoration: const BoxDecoration(color: Color(0xFFF0F0F0)),
                 clipBehavior: Clip.hardEdge,
                 child: Stack(
                   children: [
@@ -198,7 +209,6 @@ class _PostCropPreviewState extends State<PostCropPreview> with SingleTickerProv
   }
 
   Widget _buildGrid(double w, double h) {
-    // ... (Grid code sama seperti sebelumnya)
     return Stack(
       children: [
         Positioned(left: w / 3, top: 0, bottom: 0, child: _buildLine(true)),
@@ -210,7 +220,6 @@ class _PostCropPreviewState extends State<PostCropPreview> with SingleTickerProv
   }
 
   Widget _buildLine(bool vertical) {
-    // ... (Line code sama seperti sebelumnya)
     return Container(
       width: vertical ? 2 : double.infinity,
       height: vertical ? double.infinity : 2,

@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_screenutil/flutter_screenutil.dart'; // 1. WAJIB IMPORT
 import '../config.dart';
 import 'edit_profile_page.dart';
 import 'detail_post_page.dart';
+import '../widgets/verification_badge.dart';
 
 class ProfilePage extends StatefulWidget {
   final int userId;
@@ -24,7 +26,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   late TabController _tabController;
   late ScrollController _scrollController;
   bool _showTopBar = false;
-  double _gridHeight = 1000;
+  double _gridHeight = 1000.h; // Default height responsif
 
   // Header Title Dinamis
   // ignore: unused_field
@@ -37,9 +39,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     _scrollController = ScrollController();
 
     _scrollController.addListener(() {
-      if (_scrollController.offset > 400 && !_showTopBar) {
+      // Logic munculin nama di atas pas scroll
+      if (_scrollController.offset > 400.h && !_showTopBar) {
         setState(() => _showTopBar = true);
-      } else if (_scrollController.offset <= 400 && _showTopBar) {
+      } else if (_scrollController.offset <= 400.h && _showTopBar) {
         setState(() => _showTopBar = false);
       }
     });
@@ -66,6 +69,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     super.dispose();
   }
 
+  // 🔥 UPDATE RUMUS TINGGI GRID (RESPONSIF) 🔥
   void _calculateGridHeight() {
     List targetList = [];
     if (_tabController.index == 0) {
@@ -76,14 +80,16 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
     if (_tabController.index == 0 || _tabController.index == 2) {
       if (targetList.isEmpty) {
-        _gridHeight = 800;
+        _gridHeight = 800.h;
       } else {
-        double itemSize = (1080 - 10) / 3;
+        // Lebar layar penuh (1.sw) dikurangi spasi
+        double itemSize = (1.sw - 10.w) / 3;
         int rows = (targetList.length / 3).ceil();
-        _gridHeight = (rows * itemSize) + (rows * 5) + 500;
+        // Tinggi total = (baris * tinggi item) + spasi + buffer bawah
+        _gridHeight = (rows * itemSize) + (rows * 5.h) + 500.h;
       }
     } else {
-      _gridHeight = 1000;
+      _gridHeight = 1000.h;
     }
   }
 
@@ -115,7 +121,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   void _onPostTap(int index, String type) async {
     List sourceList = (type == 'saved') ? _savedPosts : _userPosts;
 
-    // 1. Cloning & Injection Data
     List<Map<String, dynamic>> targetList = sourceList.map((item) {
       return Map<String, dynamic>.from(item);
     }).toList();
@@ -127,8 +132,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       for (var post in targetList) {
         post['avatar_url'] ??= myAvatar;
         post['username'] ??= myName;
-        // 🔥 JAGA-JAGA: Kalau caption null, kasih string kosong
-        // Tapi JANGAN di-overwrite kalau API udah ngasih caption
         if (post['caption'] == null) {
           post['caption'] = "";
         }
@@ -138,7 +141,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     String title = (type == 'saved') ? "Saved" : "Creations";
     String headerUsername = _userProfile!['username'] ?? "User";
 
-    // 2. Navigasi dengan Data LENGKAP
     final shouldRefresh = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -147,7 +149,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           username: headerUsername,
           posts: targetList,
           initialIndex: index,
-          currentUserId: widget.userId, // 🔥 KIRIM ID DISINI KING
+          currentUserId: widget.userId,
         ),
       ),
     );
@@ -167,9 +169,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     String username = _userProfile!['username'] ?? "User";
     String bio = _userProfile!['bio'] ?? "";
 
-    const double headerHeight = 600.0;
-    const double maskingTopStart = 300.0;
-    const double cardBorderRadius = 80.0;
+    // 🔥 CONSTANT RESPONSIF 🔥
+    final double headerHeight = 600.h;
+    final double maskingTopStart = 300.h;
+    final double cardBorderRadius = 80.r;
 
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 255, 255, 255),
@@ -195,7 +198,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           Positioned.fill(
             top: maskingTopStart,
             child: ClipRRect(
-              borderRadius: const BorderRadius.only(
+              borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(cardBorderRadius),
                 topRight: Radius.circular(cardBorderRadius),
               ),
@@ -209,8 +212,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     controller: _scrollController,
                     physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                     slivers: [
-                      // A. GAP HEADER
-                      const SliverToBoxAdapter(child: SizedBox(height: headerHeight - maskingTopStart - 100)),
+                      // A. GAP HEADER (Jarak kosong buat Header Image)
+                      SliverToBoxAdapter(child: SizedBox(height: headerHeight - maskingTopStart - 100.h)),
 
                       // B. INFO PROFILE
                       SliverToBoxAdapter(
@@ -218,8 +221,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                           clipBehavior: Clip.none,
                           children: [
                             Container(
-                              margin: const EdgeInsets.only(top: 0),
-                              decoration: const BoxDecoration(
+                              margin: EdgeInsets.only(top: 0),
+                              decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.only(
                                   topLeft: Radius.circular(cardBorderRadius),
@@ -227,40 +230,64 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                 ),
                               ),
                               child: Padding(
-                                padding: const EdgeInsets.fromLTRB(80, 150, 80, 0),
+                                padding: EdgeInsets.fromLTRB(80.w, 150.h, 80.w, 0), // Padding responsif
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(username, style: const TextStyle(fontSize: 70, fontWeight: FontWeight.w900)),
+                                    // NAMA USER
+                                    // NAMA USER
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min, // Biar Row gak menuhin layar
+                                      children: [
+                                        Flexible(
+                                          // Pake Flexible biar kalau nama kepanjangan gak error
+                                          child: Text(
+                                            username,
+                                            style: TextStyle(fontSize: 70.sp, fontWeight: FontWeight.w900),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        SizedBox(width: 10.w), // Jarak dikit
+                                        VerificationBadge(
+                                          tier: _userProfile!['tier'] ?? 'regular', // Ambil data tier dari backend
+                                          size: 50.sp, // Ukuran agak gedean dikit buat profil
+                                        ),
+                                      ],
+                                    ),
+
+                                    // BIO
                                     if (bio.isNotEmpty)
                                       Padding(
-                                        padding: const EdgeInsets.only(top: 15),
-                                        child: Text(bio, style: TextStyle(color: Colors.grey.shade700, fontSize: 38)),
+                                        padding: EdgeInsets.only(top: 15.h),
+                                        child: Text(
+                                          bio,
+                                          style: TextStyle(color: Colors.grey.shade700, fontSize: 38.sp),
+                                        ),
                                       ),
-                                    const SizedBox(height: 50),
+                                    SizedBox(height: 50.h),
+
+                                    // STATS ROW
                                     Row(
-                                      // 👇 1. ATUR POSISI KELOMPOK DISINI (Center, Start, End, SpaceEvenly)
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        // ITEM 1: POST
                                         Expanded(
                                           child: _buildStatItem(
                                             _userProfile!['stats']['posts'].toString(),
                                             "Creations",
                                           ),
                                         ),
-                                        const SizedBox(width: 90),
-                                        Container(height: 100, width: 5, color: Colors.grey.shade300),
-                                        const SizedBox(width: 90),
+                                        SizedBox(width: 90.w),
+                                        Container(height: 100.h, width: 5.w, color: Colors.grey.shade300),
+                                        SizedBox(width: 90.w),
                                         Expanded(
                                           child: _buildStatItem(
                                             _userProfile!['stats']['followers'].toString(),
                                             "Followers",
                                           ),
                                         ),
-                                        const SizedBox(width: 90),
-                                        Container(height: 100, width: 5, color: Colors.grey.shade300),
-                                        const SizedBox(width: 90),
+                                        SizedBox(width: 90.w),
+                                        Container(height: 100.h, width: 5.w, color: Colors.grey.shade300),
+                                        SizedBox(width: 90.w),
                                         Expanded(
                                           child: _buildStatItem(
                                             _userProfile!['stats']['following'].toString(),
@@ -269,19 +296,21 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 50),
+                                    SizedBox(height: 50.h),
                                   ],
                                 ),
                               ),
                             ),
+
+                            // FOTO PROFIL (FLOAT)
                             Positioned(
-                              top: -120,
-                              left: 80,
+                              top: -120.h,
+                              left: 80.w,
                               child: Container(
-                                padding: const EdgeInsets.all(10),
+                                padding: EdgeInsets.all(10.w),
                                 decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
                                 child: CircleAvatar(
-                                  radius: 130,
+                                  radius: 130.r,
                                   backgroundColor: Colors.grey.shade200,
                                   backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty)
                                       ? CachedNetworkImageProvider(avatarUrl)
@@ -289,9 +318,11 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                 ),
                               ),
                             ),
+
+                            // TOMBOL EDIT PROFILE (FLOAT)
                             Positioned(
-                              top: 70,
-                              right: 80,
+                              top: 70.h,
+                              right: 80.w,
                               child: ElevatedButton.icon(
                                 onPressed: () async {
                                   final result = await Navigator.push(
@@ -308,15 +339,15 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                   );
                                   if (result == true) _fetchProfileData();
                                 },
-                                icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 50),
-                                label: const Text(
+                                icon: Icon(Icons.edit_outlined, color: Colors.white, size: 50.sp),
+                                label: Text(
                                   "Edit Profile",
-                                  style: TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold),
+                                  style: TextStyle(color: Colors.white, fontSize: 40.sp, fontWeight: FontWeight.bold),
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.blue,
-                                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                                  padding: EdgeInsets.symmetric(horizontal: 40.w, vertical: 20.h),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.r)),
                                   elevation: 0,
                                 ),
                               ),
@@ -325,14 +356,14 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                         ),
                       ),
 
-                      // C. TOMBOL TAB
+                      // C. TOMBOL TAB (STICKY)
                       SliverPersistentHeader(pinned: true, delegate: _SafeTabBarDelegate(_tabController)),
 
                       // D. ISI POSTINGAN (GRID CLICKABLE)
                       SliverToBoxAdapter(
                         child: Container(
                           color: Colors.white,
-                          constraints: const BoxConstraints(minHeight: 2000),
+                          constraints: BoxConstraints(minHeight: 2000.h),
                           child: Column(
                             children: [
                               SizedBox(
@@ -342,25 +373,24 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                   children: [
                                     // TAB 1 (CREATIONS)
                                     _userPosts.isEmpty
-                                        ? const Center(
-                                            child: Text("Belum ada postingan", style: TextStyle(fontSize: 40)),
+                                        ? Center(
+                                            child: Text("Belum ada postingan", style: TextStyle(fontSize: 40.sp)),
                                           )
                                         : GridView.builder(
                                             padding: EdgeInsets.zero,
                                             physics: const NeverScrollableScrollPhysics(),
                                             itemCount: _userPosts.length,
-                                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                               crossAxisCount: 3,
-                                              crossAxisSpacing: 5,
-                                              mainAxisSpacing: 5,
+                                              crossAxisSpacing: 5.w,
+                                              mainAxisSpacing: 5.w,
                                               childAspectRatio: 1.0,
                                             ),
                                             itemBuilder: (context, index) {
                                               final post = _userPosts[index];
                                               return InkWell(
-                                                onTap: () => _onPostTap(index, 'creation'), // Kirim index + tipe
+                                                onTap: () => _onPostTap(index, 'creation'),
                                                 child: CachedNetworkImage(
-                                                  // ... codingan image sama kayak sebelumnya
                                                   imageUrl: post['image_url'],
                                                   fit: BoxFit.cover,
                                                   placeholder: (context, url) => Container(color: Colors.grey.shade200),
@@ -371,32 +401,33 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                           ),
 
                                     // TAB 2 (LOCKED)
-                                    Center(child: Icon(Icons.lock_outline, size: 150, color: Colors.grey.shade400)),
+                                    Center(
+                                      child: Icon(Icons.lock_outline, size: 150.sp, color: Colors.grey.shade400),
+                                    ),
 
                                     // TAB 3 (SAVED)
                                     _savedPosts.isEmpty
-                                        ? const Center(
+                                        ? Center(
                                             child: Text(
                                               "Belum ada yang disave",
-                                              style: TextStyle(fontSize: 40, color: Colors.grey),
+                                              style: TextStyle(fontSize: 40.sp, color: Colors.grey),
                                             ),
                                           )
                                         : GridView.builder(
                                             padding: EdgeInsets.zero,
                                             physics: const NeverScrollableScrollPhysics(),
                                             itemCount: _savedPosts.length,
-                                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                               crossAxisCount: 3,
-                                              crossAxisSpacing: 5,
-                                              mainAxisSpacing: 5,
+                                              crossAxisSpacing: 5.w,
+                                              mainAxisSpacing: 5.w,
                                               childAspectRatio: 1.0,
                                             ),
                                             itemBuilder: (context, index) {
                                               final post = _savedPosts[index];
                                               return InkWell(
-                                                onTap: () => _onPostTap(index, 'saved'), // Kirim index + tipe
+                                                onTap: () => _onPostTap(index, 'saved'),
                                                 child: CachedNetworkImage(
-                                                  // ... codingan image sama kayak sebelumnya
                                                   imageUrl: post['image_url'],
                                                   fit: BoxFit.cover,
                                                   placeholder: (context, url) => Container(color: Colors.grey.shade200),
@@ -408,7 +439,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                   ],
                                 ),
                               ),
-                              const SizedBox(height: 400),
+                              SizedBox(height: 400.h),
                             ],
                           ),
                         ),
@@ -420,35 +451,35 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             ),
           ),
 
-          // LAYER 3: TOP BAR STICKY
+          // LAYER 3: TOP BAR STICKY (Muncul pas scroll ke bawah)
           Positioned(
-            top: 150,
-            left: 50,
-            right: 50,
-            height: 120,
+            top: 150.h,
+            left: 50.w,
+            right: 50.w,
+            height: 120.h,
             child: AnimatedOpacity(
               duration: const Duration(milliseconds: 300),
               opacity: _showTopBar ? 1.0 : 0.0,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 50),
+                padding: EdgeInsets.symmetric(horizontal: 50.w),
                 color: Colors.white.withOpacity(0),
                 alignment: Alignment.centerLeft,
                 child: Row(
                   children: [
                     CircleAvatar(
-                      radius: 50,
+                      radius: 50.r,
                       backgroundColor: Colors.grey.shade200,
                       backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty)
                           ? CachedNetworkImageProvider(avatarUrl)
                           : null,
                     ),
-                    const SizedBox(width: 30),
+                    SizedBox(width: 30.w),
                     Text(
                       username,
-                      style: const TextStyle(
-                        fontSize: 50,
+                      style: TextStyle(
+                        fontSize: 50.sp,
                         fontWeight: FontWeight.bold,
-                        color: Color.fromARGB(255, 255, 255, 255),
+                        color: const Color.fromARGB(255, 255, 255, 255),
                       ),
                     ),
                   ],
@@ -464,57 +495,72 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   Widget _buildStatItem(String count, String label) {
     return Column(
       children: [
-        Text(count, style: const TextStyle(fontSize: 64, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(fontSize: 35, color: Color.fromARGB(255, 100, 100, 100))),
+        Text(
+          count,
+          style: TextStyle(fontSize: 64.sp, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          label,
+          style: TextStyle(fontSize: 35.sp, color: const Color.fromARGB(255, 100, 100, 100)),
+        ),
       ],
     );
   }
 }
 
-// 🔒 DELEGATE LOCKED 🔒
+// 白 DELEGATE LOCKED (TAB BAR) 白
 class _SafeTabBarDelegate extends SliverPersistentHeaderDelegate {
   final TabController _controller;
 
   _SafeTabBarDelegate(this._controller);
   @override
-  double get minExtent => 100.0;
+  double get minExtent => 100.h; // Resposnif
   @override
-  double get maxExtent => 100.0;
+  double get maxExtent => 100.h; // Responsif
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       color: const Color.fromARGB(255, 255, 255, 255),
-      height: 100,
+      height: 100.h,
       alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 50),
+      padding: EdgeInsets.symmetric(horizontal: 50.w),
       child: TabBar(
         controller: _controller,
         labelColor: Colors.black,
         unselectedLabelColor: Colors.grey,
         indicatorColor: Colors.black,
-        indicatorWeight: 5,
+        indicatorWeight: 5.h,
         indicatorPadding: EdgeInsets.zero,
         labelPadding: EdgeInsets.zero,
         tabs: [
           Tab(
-            height: 150,
+            height: 150.h,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [Icon(Icons.grid_view_rounded, size: 70), SizedBox(height: 20)],
+              children: [
+                Icon(Icons.grid_view_rounded, size: 70.sp),
+                SizedBox(height: 20.h),
+              ],
             ),
           ),
           Tab(
-            height: 150,
+            height: 150.h,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [Icon(Icons.lock_outline_rounded, size: 70), SizedBox(height: 20)],
+              children: [
+                Icon(Icons.lock_outline_rounded, size: 70.sp),
+                SizedBox(height: 20.h),
+              ],
             ),
           ),
           Tab(
-            height: 150,
+            height: 150.h,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [Icon(Icons.bookmark_border_rounded, size: 70), SizedBox(height: 20)],
+              children: [
+                Icon(Icons.bookmark_border_rounded, size: 70.sp),
+                SizedBox(height: 20.h),
+              ],
             ),
           ),
         ],

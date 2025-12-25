@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_screenutil/flutter_screenutil.dart'; // Jangan lupa package ini
 import 'login_page.dart';
 import '../config.dart';
 
@@ -18,8 +19,6 @@ class _SignupPageState extends State<SignupPage> {
   bool _isChecked = false;
   bool _isChecked1 = false;
   bool _isLoading = false;
-
-  // --- NEW: ERROR MESSAGE ---
   String? _errorMessage;
 
   // --- CONTROLLERS ---
@@ -28,21 +27,19 @@ class _SignupPageState extends State<SignupPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
-  // --- NEW: FOCUS NODES (Buat Lift) ---
+  // --- FOCUS NODES (Buat Lift) ---
   final FocusNode _emailFocus = FocusNode();
   final FocusNode _userFocus = FocusNode();
   final FocusNode _passFocus = FocusNode();
   final FocusNode _confirmFocus = FocusNode();
-  // --- NEW: DETEKSI SEDANG NGETIK (Cek 4 Kolom) ---
+
   bool get _isTyping => _emailFocus.hasFocus || _userFocus.hasFocus || _passFocus.hasFocus || _confirmFocus.hasFocus;
 
-  // --- NEW: OFFSET (Posisi Layar) ---
   double _yOffset = 0.0;
 
   @override
   void initState() {
     super.initState();
-    // Pasang pendengar di semua kolom
     _emailFocus.addListener(_updateOffset);
     _userFocus.addListener(_updateOffset);
     _passFocus.addListener(_updateOffset);
@@ -51,7 +48,6 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   void dispose() {
-    // Wajib bersih-bersih memori
     _emailFocus.dispose();
     _userFocus.dispose();
     _passFocus.dispose();
@@ -59,34 +55,30 @@ class _SignupPageState extends State<SignupPage> {
     super.dispose();
   }
 
-  // --- LOGIKA LIFT / ELEVATOR ---
-  // Makin bawah kolomnya, makin tinggi layarnya naik
+  // --- LOGIKA LIFT (RESPONSIF) ---
   void _updateOffset() {
     setState(() {
       if (_emailFocus.hasFocus) {
-        _yOffset = -360.0; // Naik dikit
+        _yOffset = -360.h;
       } else if (_userFocus.hasFocus) {
-        _yOffset = -360.0;
+        _yOffset = -360.h;
       } else if (_passFocus.hasFocus) {
-        _yOffset = -360.0;
+        _yOffset = -360.h;
       } else if (_confirmFocus.hasFocus) {
-        _yOffset = -360.0; // Naik tinggi banget
+        _yOffset = -450.h; // Naik lebih tinggi
       } else {
-        _yOffset = 0.0; // Balik normal
+        _yOffset = 0.0;
       }
     });
   }
 
   // --- FUNGSI REGISTER ---
   Future<void> _registerUser() async {
-    FocusScope.of(context).unfocus(); // Tutup keyboard
-
-    // 1. Reset Error
+    FocusScope.of(context).unfocus();
     setState(() {
       _errorMessage = null;
     });
 
-    // 2. Validasi Input Kosong
     if (_usernameController.text.isEmpty ||
         _emailController.text.isEmpty ||
         _passwordController.text.isEmpty ||
@@ -97,7 +89,6 @@ class _SignupPageState extends State<SignupPage> {
       return;
     }
 
-    // 3. Validasi Password Match
     if (_passwordController.text != _confirmPasswordController.text) {
       setState(() {
         _errorMessage = "Password tidak sama!";
@@ -105,7 +96,6 @@ class _SignupPageState extends State<SignupPage> {
       return;
     }
 
-    // 4. Validasi Checkbox
     if (!_isChecked || !_isChecked1) {
       setState(() {
         _errorMessage = "Setujui S&K dan Guidelines dulu!";
@@ -131,25 +121,20 @@ class _SignupPageState extends State<SignupPage> {
       );
 
       if (response.statusCode == 201) {
-        print("Sukses: ${response.body}");
         if (mounted) {
-          // Sukses -> Langsung lempar ke Login Page
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginPage()));
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text("Registrasi Berhasil! Silakan Login.")));
         }
       } else {
-        print("Gagal: ${response.body}");
         if (mounted) {
           setState(() {
-            // Coba ambil pesan error dari server kalau ada, atau default message
             _errorMessage = "Gagal daftar. Username/Email sudah dipakai.";
           });
         }
       }
     } catch (e) {
-      print("Error Koneksi: $e");
       if (mounted) {
         setState(() {
           _errorMessage = "Gagal konek ke Server!";
@@ -164,7 +149,6 @@ class _SignupPageState extends State<SignupPage> {
     }
   }
 
-  // Helper untuk membersihkan error saat ngetik
   void _clearError(String value) {
     if (_errorMessage != null) {
       setState(() {
@@ -177,54 +161,50 @@ class _SignupPageState extends State<SignupPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      resizeToAvoidBottomInset: false, // JANGAN GEPENG!
+      resizeToAvoidBottomInset: false,
 
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
-        child: Center(
-          child: FittedBox(
-            fit: BoxFit.cover,
-            child: SizedBox(
-              width: 1080,
-              height: 2424,
-
-              // ANIMASI LIFT
-              child: AnimatedContainer(
+        child: SizedBox(
+          width: 1.sw,
+          height: 1.sh,
+          child: Stack(
+            children: [
+              // 1. KONTEN UTAMA
+              AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeOut,
                 transform: Matrix4.translationValues(0, _yOffset, 0),
-
                 child: Stack(
                   children: [
-                    // Background
+                    // --- BACKGROUND ---
                     Positioned(
                       left: 0,
                       top: 0,
-                      width: 1080,
-                      child: Image.asset('assets/images/Signup_background.png', fit: BoxFit.fill),
+                      width: 1080.w,
+                      child: Image.asset('assets/images/Signup_background.png', fit: BoxFit.fitWidth),
                     ),
 
-                    // --- TITLE TEXT (ANIMATED) ---
-                    // Naik dikit kalau ada error biar gak ketabrak
+                    // --- TITLE TEXT ---
                     AnimatedPositioned(
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeInOut,
-                      left: 81,
-                      top: _errorMessage != null ? 620 : 690, // Naik dari 690 ke 620
-                      width: 424,
+                      left: 81.w,
+                      top: _errorMessage != null ? 620.h : 690.h,
+                      width: 424.w,
                       child: Image.asset('assets/images/Sign Up text.png', fit: BoxFit.fill),
                     ),
 
-                    // --- ERROR MESSAGE (NEW) ---
+                    // --- ERROR MESSAGE ---
                     if (_errorMessage != null)
                       Positioned(
                         left: 0,
                         right: 0,
-                        top: 860, // Posisi di atas Email (927)
+                        top: 860.h,
                         child: Center(
                           child: Text(
                             _errorMessage!,
-                            style: const TextStyle(color: Colors.red, fontSize: 35, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: Colors.red, fontSize: 35.sp, fontWeight: FontWeight.bold),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -232,197 +212,96 @@ class _SignupPageState extends State<SignupPage> {
 
                     // --- EMAIL INPUT ---
                     Positioned(
-                      left: 94,
-                      top: 927,
-                      width: 904,
-                      height: 111,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(60),
-                          // Merah kalau error
-                          border: Border.all(
-                            color: _errorMessage != null ? Colors.red : const Color.fromARGB(255, 0, 0, 0),
-                            width: 3,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 50.0),
-                          child: TextField(
-                            controller: _emailController,
-                            focusNode: _emailFocus,
-                            onChanged: _clearError,
-                            style: const TextStyle(fontSize: 40, color: Colors.black, fontWeight: FontWeight.w400),
-                            decoration: InputDecoration(
-                              hintText: "E-mail",
-                              hintStyle: TextStyle(fontSize: 40, color: Colors.grey.shade400),
-                              border: InputBorder.none,
-                            ),
-                          ),
-                        ),
+                      left: 94.w,
+                      top: 927.h,
+                      width: 904.w,
+                      height: 111.h,
+                      child: _buildTextField(
+                        controller: _emailController,
+                        focusNode: _emailFocus,
+                        hintText: "E-mail",
+                        hasError: _errorMessage != null,
                       ),
                     ),
 
                     // --- USERNAME INPUT ---
                     Positioned(
-                      left: 88,
-                      top: 1075,
-                      width: 904,
-                      height: 111,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(60),
-                          border: Border.all(
-                            color: _errorMessage != null ? Colors.red : const Color.fromARGB(255, 0, 0, 0),
-                            width: 3,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 50.0),
-                          child: TextField(
-                            controller: _usernameController,
-                            focusNode: _userFocus,
-                            onChanged: _clearError,
-                            style: const TextStyle(fontSize: 40, color: Colors.black, fontWeight: FontWeight.w400),
-                            decoration: InputDecoration(
-                              hintText: "Username",
-                              hintStyle: TextStyle(fontSize: 40, color: Colors.grey.shade400),
-                              border: InputBorder.none,
-                            ),
-                          ),
-                        ),
+                      left: 88.w,
+                      top: 1075.h,
+                      width: 904.w,
+                      height: 111.h,
+                      child: _buildTextField(
+                        controller: _usernameController,
+                        focusNode: _userFocus,
+                        hintText: "Username",
+                        hasError: _errorMessage != null,
                       ),
                     ),
 
                     // --- PASSWORD INPUT ---
                     Positioned(
-                      left: 88,
-                      top: 1223,
-                      width: 904,
-                      height: 111,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(60),
-                          border: Border.all(
-                            color: _errorMessage != null ? Colors.red : const Color.fromARGB(255, 0, 0, 0),
-                            width: 3,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 50.0),
-                          child: TextField(
-                            controller: _passwordController,
-                            focusNode: _passFocus,
-                            onChanged: _clearError,
-                            obscureText: _isObscured,
-                            style: const TextStyle(fontSize: 40, color: Colors.black, fontWeight: FontWeight.w400),
-                            decoration: InputDecoration(
-                              hintText: "Password",
-                              hintStyle: TextStyle(fontSize: 40, color: Colors.grey.shade400),
-                              border: InputBorder.none,
-                              suffixIcon: Padding(
-                                padding: const EdgeInsets.only(right: 10.0),
-                                child: IconButton(
-                                  iconSize: 40,
-                                  icon: Icon(_isObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
-                                  onPressed: () {
-                                    setState(() {
-                                      _isObscured = !_isObscured;
-                                    });
-                                  },
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+                      left: 88.w,
+                      top: 1223.h,
+                      width: 904.w,
+                      height: 111.h,
+                      child: _buildTextField(
+                        controller: _passwordController,
+                        focusNode: _passFocus,
+                        hintText: "Password",
+                        hasError: _errorMessage != null,
+                        isPassword: true,
+                        isObscured: _isObscured,
+                        onToggleVisibility: () => setState(() => _isObscured = !_isObscured),
                       ),
                     ),
 
                     // --- CONFIRM PASSWORD INPUT ---
                     Positioned(
-                      left: 88,
-                      top: 1371,
-                      width: 904,
-                      height: 111,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(60),
-                          border: Border.all(
-                            color: _errorMessage != null ? Colors.red : const Color.fromARGB(255, 0, 0, 0),
-                            width: 3,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 50.0),
-                          child: TextField(
-                            controller: _confirmPasswordController,
-                            focusNode: _confirmFocus,
-                            onChanged: _clearError,
-                            obscureText: _isObscured1,
-                            style: const TextStyle(fontSize: 40, color: Colors.black, fontWeight: FontWeight.w400),
-                            decoration: InputDecoration(
-                              hintText: "Confirm Password",
-                              hintStyle: TextStyle(fontSize: 40, color: Colors.grey.shade400),
-                              border: InputBorder.none,
-                              suffixIcon: Padding(
-                                padding: const EdgeInsets.only(right: 10.0),
-                                child: IconButton(
-                                  iconSize: 40,
-                                  icon: Icon(
-                                    _isObscured1 ? Icons.visibility_off : Icons.visibility,
-                                    color: Colors.grey,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _isObscured1 = !_isObscured1;
-                                    });
-                                  },
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+                      left: 88.w,
+                      top: 1371.h,
+                      width: 904.w,
+                      height: 111.h,
+                      child: _buildTextField(
+                        controller: _confirmPasswordController,
+                        focusNode: _confirmFocus,
+                        hintText: "Confirm Password",
+                        hasError: _errorMessage != null,
+                        isPassword: true,
+                        isObscured: _isObscured1,
+                        onToggleVisibility: () => setState(() => _isObscured1 = !_isObscured1),
                       ),
                     ),
 
                     // --- CHECKBOX 1 (S&K) ---
                     Positioned(
-                      left: 113,
-                      top: 1519,
+                      left: 113.w,
+                      top: 1519.h,
                       child: GestureDetector(
                         onTap: () {
                           setState(() {
                             _isChecked1 = !_isChecked1;
-                            if (_isChecked1 && _isChecked) _errorMessage = null; // Clear error kalau udah centang
+                            if (_isChecked1 && _isChecked) _errorMessage = null;
                           });
                         },
                         child: Row(
                           children: [
                             Container(
-                              width: 50,
-                              height: 50,
+                              width: 50.w,
+                              height: 50.w,
                               decoration: BoxDecoration(
                                 color: _isChecked1 ? Colors.black : Colors.white,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(12.r),
                                 border: Border.all(
-                                  // Merah kalau error checkbox
                                   color: (_errorMessage != null && !_isChecked1) ? Colors.red : Colors.black,
-                                  width: 4,
+                                  width: 4.w,
                                 ),
                               ),
-                              child: _isChecked1 ? const Icon(Icons.check, size: 40, color: Colors.white) : null,
+                              child: _isChecked1 ? Icon(Icons.check, size: 40.sp, color: Colors.white) : null,
                             ),
-                            const SizedBox(width: 20),
-                            const Text(
-                              "I agree to the Terms of Service and Privacy Policy.",
-                              style: TextStyle(fontSize: 35, fontWeight: FontWeight.w500, color: Colors.black),
+                            SizedBox(width: 20.w),
+                            Text(
+                              "I agree to the Terms of Service\nand Privacy Policy.",
+                              style: TextStyle(fontSize: 35.sp, fontWeight: FontWeight.w500, color: Colors.black),
                             ),
                           ],
                         ),
@@ -431,8 +310,8 @@ class _SignupPageState extends State<SignupPage> {
 
                     // --- CHECKBOX 2 (Guidelines) ---
                     Positioned(
-                      left: 113,
-                      top: 1576,
+                      left: 113.w,
+                      top: 1610.h,
                       child: GestureDetector(
                         onTap: () {
                           setState(() {
@@ -443,22 +322,22 @@ class _SignupPageState extends State<SignupPage> {
                         child: Row(
                           children: [
                             Container(
-                              width: 50,
-                              height: 50,
+                              width: 50.w,
+                              height: 50.w,
                               decoration: BoxDecoration(
                                 color: _isChecked ? Colors.black : Colors.white,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(12.r),
                                 border: Border.all(
                                   color: (_errorMessage != null && !_isChecked) ? Colors.red : Colors.black,
-                                  width: 4,
+                                  width: 4.w,
                                 ),
                               ),
-                              child: _isChecked ? const Icon(Icons.check, size: 40, color: Colors.white) : null,
+                              child: _isChecked ? Icon(Icons.check, size: 40.sp, color: Colors.white) : null,
                             ),
-                            const SizedBox(width: 20),
-                            const Text(
+                            SizedBox(width: 20.w),
+                            Text(
                               "I agree to the Community Guidelines.",
-                              style: TextStyle(fontSize: 35, fontWeight: FontWeight.w500, color: Colors.black),
+                              style: TextStyle(fontSize: 35.sp, fontWeight: FontWeight.w500, color: Colors.black),
                             ),
                           ],
                         ),
@@ -467,10 +346,10 @@ class _SignupPageState extends State<SignupPage> {
 
                     // --- TOMBOL CREATE ACCOUNT ---
                     Positioned(
-                      left: 94,
-                      top: 1656,
-                      width: 904,
-                      height: 111,
+                      left: 94.w,
+                      top: 1690.h,
+                      width: 904.w,
+                      height: 111.h,
                       child: GestureDetector(
                         onTap: _isLoading ? null : _registerUser,
                         child: _isLoading
@@ -479,20 +358,20 @@ class _SignupPageState extends State<SignupPage> {
                       ),
                     ),
 
-                    // Sign Up Another (Or)
+                    // --- OR SIGNUP WITH ---
                     Positioned(
-                      left: 94,
-                      top: 1834,
-                      width: 904,
+                      left: 94.w,
+                      top: 1860.h,
+                      width: 904.w,
                       child: Image.asset('assets/images/Sign Up Another.png', fit: BoxFit.fill),
                     ),
 
-                    // Already Have Account (Ke Login)
+                    // --- ALREADY HAVE ACCOUNT (Jangkar Bawah) ---
                     Positioned(
-                      left: 260,
-                      top: 2131,
-                      width: 560,
-                      height: 49,
+                      left: 260.w,
+                      bottom: 250.h, // Dikunci di bawah biar aman
+                      width: 560.w,
+                      height: 49.h,
                       child: GestureDetector(
                         onTap: () {
                           Navigator.of(context).push(
@@ -508,39 +387,91 @@ class _SignupPageState extends State<SignupPage> {
                         child: Image.asset('assets/images/Already have account.png', fit: BoxFit.contain),
                       ),
                     ),
-
-                    Positioned(
-                      top: 360,
-                      left: 0,
-                      width: 1080,
-                      height: 500, // Tinggi area fade (bisa disesuaikan)
-                      child: IgnorePointer(
-                        // Biar klik tembus ke bawahnya
-                        child: AnimatedOpacity(
-                          // Muncul cuma pas lagi ngetik (_isTyping = true)
-                          opacity: _isTyping ? 1.0 : 0.0,
-                          duration: const Duration(milliseconds: 300),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.white.withOpacity(1.0), // Putih Solid di paling atas
-                                  Colors.white.withOpacity(0.9),
-                                  Colors.white.withOpacity(0.0), // Transparan di bawah
-                                ],
-                                stops: const [0.0, 0.3, 1.0], // Titik gradasinya biar halus
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
-            ),
+
+              // --- 2. FADE EFFECT LAYER ---
+              Positioned(
+                top: 0, // Nempel atas
+                left: 0,
+                width: 1.sw,
+                height: 500.h, // Area fade
+                child: IgnorePointer(
+                  child: AnimatedOpacity(
+                    opacity: _isTyping ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 300),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withOpacity(1.0),
+                            Colors.white.withOpacity(0.9),
+                            Colors.white.withOpacity(0.0),
+                          ],
+                          stops: const [0.0, 0.3, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🔥 WIDGET PINTAR: TEXTFIELD + CUSTOM ICON 🔥
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String hintText,
+    bool hasError = false,
+    bool isPassword = false,
+    bool isObscured = false,
+    VoidCallback? onToggleVisibility,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(60.r),
+        border: Border.all(color: hasError ? Colors.red : const Color.fromARGB(255, 0, 0, 0), width: 3.w),
+      ),
+      alignment: Alignment.center,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 40.w),
+        child: TextField(
+          controller: controller,
+          focusNode: focusNode,
+          onChanged: _clearError,
+          obscureText: isObscured,
+          style: TextStyle(fontSize: 40.sp, color: Colors.black, fontWeight: FontWeight.w400, height: 1.0),
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: TextStyle(fontSize: 40.sp, color: Colors.grey.shade400),
+            border: InputBorder.none,
+            // LOGIC CENTER TEXT
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(vertical: 30.h),
+
+            // LOGIC ICON MEPET KANAN (Custom)
+            suffixIcon: isPassword
+                ? Padding(
+                    // Bisa ganti 0.w kalau mau lebih mepet lagi
+                    padding: EdgeInsets.only(left: 50.w),
+                    child: IconButton(
+                      padding: EdgeInsets.zero, // Hapus padding internal
+                      constraints: const BoxConstraints(), // Hapus batasan size default
+                      iconSize: 35.sp,
+                      icon: Icon(isObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                      onPressed: onToggleVisibility,
+                    ),
+                  )
+                : null,
           ),
         ),
       ),
