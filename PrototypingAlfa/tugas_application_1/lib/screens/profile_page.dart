@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_screenutil/flutter_screenutil.dart'; // 1. WAJIB IMPORT
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../config.dart';
 import 'edit_profile_page.dart';
 import 'detail_post_page.dart';
@@ -26,9 +26,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   late TabController _tabController;
   late ScrollController _scrollController;
   bool _showTopBar = false;
-  double _gridHeight = 1000.h; // Default height responsif
+  double _gridHeight = 1000.h;
 
-  // Header Title Dinamis
   // ignore: unused_field
   String _headerTitle = "Creations";
 
@@ -39,7 +38,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     _scrollController = ScrollController();
 
     _scrollController.addListener(() {
-      // Logic munculin nama di atas pas scroll
       if (_scrollController.offset > 400.h && !_showTopBar) {
         setState(() => _showTopBar = true);
       } else if (_scrollController.offset <= 400.h && _showTopBar) {
@@ -69,7 +67,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     super.dispose();
   }
 
-  // 🔥 UPDATE RUMUS TINGGI GRID (RESPONSIF) 🔥
   void _calculateGridHeight() {
     List targetList = [];
     if (_tabController.index == 0) {
@@ -82,10 +79,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       if (targetList.isEmpty) {
         _gridHeight = 800.h;
       } else {
-        // Lebar layar penuh (1.sw) dikurangi spasi
         double itemSize = (1.sw - 10.w) / 3;
         int rows = (targetList.length / 3).ceil();
-        // Tinggi total = (baris * tinggi item) + spasi + buffer bawah
         _gridHeight = (rows * itemSize) + (rows * 5.h) + 500.h;
       }
     } else {
@@ -95,9 +90,21 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   Future<void> _fetchProfileData() async {
     try {
-      final resInfo = await http.get(Uri.parse("${Config.baseUrl}/get_profile_info?user_id=${widget.userId}"));
-      final resPosts = await http.get(Uri.parse("${Config.baseUrl}/get_user_posts?user_id=${widget.userId}"));
-      final resSaved = await http.get(Uri.parse("${Config.baseUrl}/get_saved_posts?user_id=${widget.userId}"));
+      // 🔥 FIX: KIRIM visitor_id (ID KITA SENDIRI)
+      // Supaya server tau "Oh, yang liat postingan ini si pemilik akun sendiri,
+      // coba cek dia udah like postingannya sendiri belum?"
+
+      final resInfo = await http.get(
+        Uri.parse("${Config.baseUrl}/get_profile_info?user_id=${widget.userId}&visitor_id=${widget.userId}"),
+      );
+
+      final resPosts = await http.get(
+        Uri.parse("${Config.baseUrl}/get_user_posts?user_id=${widget.userId}&visitor_id=${widget.userId}"),
+      );
+
+      final resSaved = await http.get(
+        Uri.parse("${Config.baseUrl}/get_saved_posts?user_id=${widget.userId}&visitor_id=${widget.userId}"),
+      );
 
       if (resInfo.statusCode == 200 && resPosts.statusCode == 200) {
         if (mounted) {
@@ -121,6 +128,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   void _onPostTap(int index, String type) async {
     List sourceList = (type == 'saved') ? _savedPosts : _userPosts;
 
+    // Deep copy biar aman
     List<Map<String, dynamic>> targetList = sourceList.map((item) {
       return Map<String, dynamic>.from(item);
     }).toList();
@@ -155,7 +163,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     );
 
     if (shouldRefresh == true) {
-      _fetchProfileData();
+      _fetchProfileData(); // Refresh pas balik dari detail
     }
   }
 
@@ -169,7 +177,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     String username = _userProfile!['username'] ?? "User";
     String bio = _userProfile!['bio'] ?? "";
 
-    // 🔥 CONSTANT RESPONSIF 🔥
     final double headerHeight = 600.h;
     final double maskingTopStart = 300.h;
     final double cardBorderRadius = 80.r;
@@ -212,7 +219,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     controller: _scrollController,
                     physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                     slivers: [
-                      // A. GAP HEADER (Jarak kosong buat Header Image)
+                      // A. GAP HEADER
                       SliverToBoxAdapter(child: SizedBox(height: headerHeight - maskingTopStart - 100.h)),
 
                       // B. INFO PROFILE
@@ -230,31 +237,25 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                 ),
                               ),
                               child: Padding(
-                                padding: EdgeInsets.fromLTRB(80.w, 150.h, 80.w, 0), // Padding responsif
+                                padding: EdgeInsets.fromLTRB(80.w, 150.h, 80.w, 0),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     // NAMA USER
-                                    // NAMA USER
                                     Row(
-                                      mainAxisSize: MainAxisSize.min, // Biar Row gak menuhin layar
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Flexible(
-                                          // Pake Flexible biar kalau nama kepanjangan gak error
                                           child: Text(
                                             username,
                                             style: TextStyle(fontSize: 70.sp, fontWeight: FontWeight.w900),
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
-                                        SizedBox(width: 10.w), // Jarak dikit
-                                        VerificationBadge(
-                                          tier: _userProfile!['tier'] ?? 'regular', // Ambil data tier dari backend
-                                          size: 50.sp, // Ukuran agak gedean dikit buat profil
-                                        ),
+                                        SizedBox(width: 10.w),
+                                        VerificationBadge(tier: _userProfile!['tier'] ?? 'regular', size: 50.sp),
                                       ],
                                     ),
-
                                     // BIO
                                     if (bio.isNotEmpty)
                                       Padding(
@@ -266,7 +267,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                       ),
                                     SizedBox(height: 50.h),
 
-                                    // STATS ROW
+                                    // STATS
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
@@ -302,7 +303,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                               ),
                             ),
 
-                            // FOTO PROFIL (FLOAT)
+                            // FOTO PROFIL
                             Positioned(
                               top: -120.h,
                               left: 80.w,
@@ -319,7 +320,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                               ),
                             ),
 
-                            // TOMBOL EDIT PROFILE (FLOAT)
+                            // TOMBOL EDIT
                             Positioned(
                               top: 70.h,
                               right: 80.w,
@@ -356,10 +357,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                         ),
                       ),
 
-                      // C. TOMBOL TAB (STICKY)
+                      // C. TAB BAR
                       SliverPersistentHeader(pinned: true, delegate: _SafeTabBarDelegate(_tabController)),
 
-                      // D. ISI POSTINGAN (GRID CLICKABLE)
+                      // D. ISI GRID
                       SliverToBoxAdapter(
                         child: Container(
                           color: Colors.white,
@@ -371,7 +372,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                 child: TabBarView(
                                   controller: _tabController,
                                   children: [
-                                    // TAB 1 (CREATIONS)
+                                    // CREATIONS
                                     _userPosts.isEmpty
                                         ? Center(
                                             child: Text("Belum ada postingan", style: TextStyle(fontSize: 40.sp)),
@@ -393,19 +394,16 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                                 child: CachedNetworkImage(
                                                   imageUrl: post['image_url'],
                                                   fit: BoxFit.cover,
-                                                  placeholder: (context, url) => Container(color: Colors.grey.shade200),
-                                                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                                                  placeholder: (_, __) => Container(color: Colors.grey.shade200),
                                                 ),
                                               );
                                             },
                                           ),
-
-                                    // TAB 2 (LOCKED)
+                                    // LOCKED
                                     Center(
                                       child: Icon(Icons.lock_outline, size: 150.sp, color: Colors.grey.shade400),
                                     ),
-
-                                    // TAB 3 (SAVED)
+                                    // SAVED
                                     _savedPosts.isEmpty
                                         ? Center(
                                             child: Text(
@@ -430,8 +428,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                                 child: CachedNetworkImage(
                                                   imageUrl: post['image_url'],
                                                   fit: BoxFit.cover,
-                                                  placeholder: (context, url) => Container(color: Colors.grey.shade200),
-                                                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                                                  placeholder: (_, __) => Container(color: Colors.grey.shade200),
                                                 ),
                                               );
                                             },
@@ -451,7 +448,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             ),
           ),
 
-          // LAYER 3: TOP BAR STICKY (Muncul pas scroll ke bawah)
+          // LAYER 3: TOP BAR
           Positioned(
             top: 150.h,
             left: 50.w,
@@ -476,11 +473,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     SizedBox(width: 30.w),
                     Text(
                       username,
-                      style: TextStyle(
-                        fontSize: 50.sp,
-                        fontWeight: FontWeight.bold,
-                        color: const Color.fromARGB(255, 255, 255, 255),
-                      ),
+                      style: TextStyle(fontSize: 50.sp, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                   ],
                 ),
@@ -508,19 +501,17 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   }
 }
 
-// 白 DELEGATE LOCKED (TAB BAR) 白
 class _SafeTabBarDelegate extends SliverPersistentHeaderDelegate {
   final TabController _controller;
-
   _SafeTabBarDelegate(this._controller);
   @override
-  double get minExtent => 100.h; // Resposnif
+  double get minExtent => 100.h;
   @override
-  double get maxExtent => 100.h; // Responsif
+  double get maxExtent => 100.h;
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
-      color: const Color.fromARGB(255, 255, 255, 255),
+      color: Colors.white,
       height: 100.h,
       alignment: Alignment.center,
       padding: EdgeInsets.symmetric(horizontal: 50.w),

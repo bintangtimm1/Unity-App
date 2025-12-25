@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart'; // 1. WAJIB IMPORT
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../widgets/post_item.dart';
 
 class DetailPostPage extends StatefulWidget {
   final String title;
   final String username;
-  final List posts;
+  final List posts; // Data mentah dari halaman sebelumnya
   final int initialIndex;
   final int currentUserId;
 
@@ -29,16 +29,43 @@ class _DetailPostPageState extends State<DetailPostPage> {
   @override
   void initState() {
     super.initState();
-    _localPosts = widget.posts;
+    _sanitizeAndLoadData(); // 🔥 Panggil fungsi pembersih
 
+    // SCROLL LOGIC
     if (widget.initialIndex > 0) {
-      // 🔥 ESTIMASI POSISI SCROLL (RESPONSIF) 🔥
-      // Angka 1600 adalah perkiraan tinggi 1 postingan (Header + Gambar + Action + Caption)
       double estimatedOffset = widget.initialIndex * 1600.h;
       _scrollController = ScrollController(initialScrollOffset: estimatedOffset);
     } else {
       _scrollController = ScrollController();
     }
+  }
+
+  // 🔥 FUNGSI PEMBERSIH DATA (Dipisah biar rapi)
+  void _sanitizeAndLoadData() {
+    // Kita copy list-nya biar aman
+    _localPosts = List.from(widget.posts).map((post) {
+      // 1. Fix Like Status
+      // Kalau datanya 1 atau '1', paksa jadi TRUE
+      if (post['is_liked'] == 1 || post['is_liked'] == '1') {
+        post['is_liked'] = true;
+        print("DEBUG: Post ID ${post['id']} status LIKE diperbaiki jadi TRUE");
+      }
+      // Kalau datanya 0, '0', atau null, paksa jadi FALSE
+      else if (post['is_liked'] == 0 || post['is_liked'] == '0' || post['is_liked'] == null) {
+        post['is_liked'] = false;
+      }
+
+      // 2. Fix Saved Status
+      if (post['is_saved'] == 1 || post['is_saved'] == '1') {
+        post['is_saved'] = true;
+      } else if (post['is_saved'] == 0 || post['is_saved'] == '0' || post['is_saved'] == null) {
+        post['is_saved'] = false;
+      }
+
+      return post;
+    }).toList();
+
+    setState(() {}); // Refresh UI setelah data bersih
   }
 
   @override
@@ -49,22 +76,10 @@ class _DetailPostPageState extends State<DetailPostPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 🔒 ANGKA TUNING POSISI (RESPONSIF) 🔒
-
-    // 1. Tinggi Header
     final double headerHeight = 290.h;
-
-    // 2. Posisi Tombol Back (Panah Kiri)
-    final double backBtnTop = 150.h;
-    final double backBtnLeft = 40.w;
-
-    // 3. Posisi Judul & Username
-    final double titleTop = 130.h;
-    final double userTop = 190.h;
 
     return Scaffold(
       backgroundColor: Colors.white,
-      // 🔥 HAPUS FittedBox, Ganti Full Screen Box
       body: SizedBox(
         width: 1.sw,
         height: 1.sh,
@@ -72,7 +87,7 @@ class _DetailPostPageState extends State<DetailPostPage> {
           children: [
             // --- LAYER 1: LIST POSTINGAN ---
             Positioned.fill(
-              top: headerHeight, // Mulai setelah header
+              top: headerHeight,
               child: ListView.builder(
                 controller: _scrollController,
                 padding: EdgeInsets.zero,
@@ -81,18 +96,20 @@ class _DetailPostPageState extends State<DetailPostPage> {
                   return PostItem(
                     post: _localPosts[index],
                     currentUserId: widget.currentUserId,
+
+                    // UPDATE STATE SAAT LIKE DI-KLIK DI SINI
                     onLikeChanged: (bool isLiked, int newCount) {
                       setState(() {
                         _localPosts[index]['is_liked'] = isLiked;
                         _localPosts[index]['total_likes'] = newCount;
                       });
                     },
-                    // Callback Save juga bisa ditambah di sini kalau mau update realtime
                     onSaveChanged: (bool isSaved) {
                       setState(() {
                         _localPosts[index]['is_saved'] = isSaved;
                       });
                     },
+                    onNavigateToProfileTab: () {},
                   );
                 },
               ),
@@ -113,17 +130,18 @@ class _DetailPostPageState extends State<DetailPostPage> {
                 ),
                 child: Stack(
                   children: [
-                    // A. TOMBOL BACK (PANAH)
+                    // TOMBOL BACK
                     Positioned(
-                      top: backBtnTop,
-                      left: backBtnLeft,
+                      top: 150.h,
+                      left: 40.w,
                       child: IconButton(
                         icon: Icon(Icons.arrow_back, color: Colors.black, size: 80.sp),
-                        onPressed: () => Navigator.pop(context, true), // Kirim true biar Profile refresh
+                        onPressed: () {
+                          Navigator.pop(context, true);
+                        },
                       ),
                     ),
-
-                    // B. JUDUL & USERNAME (TENGAH)
+                    // JUDUL & USERNAME
                     Positioned(
                       top: 170.h,
                       left: 0,
@@ -132,7 +150,7 @@ class _DetailPostPageState extends State<DetailPostPage> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Text(
-                            widget.title, // "Creations" / "Saved"
+                            widget.title,
                             textAlign: TextAlign.center,
                             style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 40.sp),
                           ),

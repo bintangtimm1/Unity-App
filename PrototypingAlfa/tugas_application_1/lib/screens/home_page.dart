@@ -20,11 +20,13 @@ class HomePage extends StatefulWidget {
 class HomePageState extends State<HomePage> {
   List _posts = [];
   bool _isLoading = true;
+  int _unreadCount = 0;
 
   @override
   void initState() {
     super.initState();
     fetchPosts();
+    _fetchUnreadCount();
   }
 
   Future<void> fetchPosts() async {
@@ -40,6 +42,24 @@ class HomePageState extends State<HomePage> {
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _fetchUnreadCount() async {
+    try {
+      final response = await http.get(
+        Uri.parse("${Config.baseUrl}/notifications/unread_count?user_id=${widget.userId}"),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _unreadCount = data['unread_count'] ?? 0;
+          });
+        }
+      }
+    } catch (e) {
+      print("Error fetching unread count: $e");
     }
   }
 
@@ -77,19 +97,39 @@ class HomePageState extends State<HomePage> {
 
                     // 🔥 TOMBOL NOTIFIKASI (KIRI ATAS)
                     Positioned(
-                      left: 40.w,
-                      bottom: 50.h, // Sesuaikan dengan posisi logo Unity biar sejajar
+                      left: 50.w,
+                      bottom: 40.h,
                       child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
+                        onTap: () async {
+                          // Pas dipencet, buka halaman notif
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(builder: (context) => NotificationPage(userId: widget.userId)),
                           );
+                          // Pas balik dari halaman notif, refresh titik merah (pasti jadi 0)
+                          _fetchUnreadCount();
                         },
-                        child: Icon(
-                          Icons.favorite_border, // Ikon Hati ala IG (atau Icons.notifications_outlined)
-                          size: 60.sp,
-                          color: Colors.black,
+                        child: Stack(
+                          // Pakai Stack biar titiknya nindih icon
+                          clipBehavior: Clip.none,
+                          children: [
+                            // 1. ICON LONCENG (Ganti dari favorite_border)
+                            Icon(Icons.notifications_outlined, size: 70.sp, color: Colors.black),
+
+                            // 2. TITIK MERAH (Hanya muncul kalau unread > 0)
+                            if (_unreadCount > 0)
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                child: Container(
+                                  padding: EdgeInsets.all(4.r),
+                                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                  constraints: BoxConstraints(minWidth: 20.w, minHeight: 20.w),
+                                  // (Opsional) Kalau mau nampilin angka, uncomment text di bawah
+                                  // child: Text('$_unreadCount', style: TextStyle(color: Colors.white, fontSize: 10.sp)),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),

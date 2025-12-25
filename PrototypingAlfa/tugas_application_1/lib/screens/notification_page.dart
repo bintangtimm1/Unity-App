@@ -21,6 +21,7 @@ class _NotificationPageState extends State<NotificationPage> {
   void initState() {
     super.initState();
     _fetchNotifications();
+    _markAllAsRead();
   }
 
   Future<void> _fetchNotifications() async {
@@ -39,6 +40,18 @@ class _NotificationPageState extends State<NotificationPage> {
     }
   }
 
+  Future<void> _markAllAsRead() async {
+    try {
+      await http.post(
+        Uri.parse("${Config.baseUrl}/notifications/mark_read"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"user_id": widget.userId}),
+      );
+    } catch (e) {
+      print("Gagal tandai read: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,6 +59,7 @@ class _NotificationPageState extends State<NotificationPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        centerTitle: true,
         leading: GestureDetector(
           onTap: () => Navigator.pop(context),
           child: Icon(Icons.arrow_back, color: Colors.black, size: 60.sp),

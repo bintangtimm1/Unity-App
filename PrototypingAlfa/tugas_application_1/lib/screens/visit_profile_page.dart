@@ -5,19 +5,14 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../config.dart';
 import 'detail_post_page.dart';
-import '../widgets/verification_badge.dart'; // <--- JANGAN LUPA INI
+import '../widgets/verification_badge.dart';
 
 class VisitProfilePage extends StatefulWidget {
   final int userId; // ID Orang yang dikunjungi
   final String username; // Nama Orang
   final int visitorId; // ID Kita
 
-  const VisitProfilePage({
-    super.key,
-    required this.userId,
-    required this.username,
-    required this.visitorId, // Wajib ada
-  });
+  const VisitProfilePage({super.key, required this.userId, required this.username, required this.visitorId});
 
   @override
   State<VisitProfilePage> createState() => _VisitProfilePageState();
@@ -54,11 +49,12 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
 
   Future<void> _fetchProfileData() async {
     try {
-      // 🔥 KIRIM JUGA visitor_id BIAR TAU STATUS FOLLOW
       final resInfo = await http.get(
         Uri.parse("${Config.baseUrl}/get_profile_info?user_id=${widget.userId}&visitor_id=${widget.visitorId}"),
       );
-      final resPosts = await http.get(Uri.parse("${Config.baseUrl}/get_user_posts?user_id=${widget.userId}"));
+      final resPosts = await http.get(
+        Uri.parse("${Config.baseUrl}/get_user_posts?user_id=${widget.userId}&visitor_id=${widget.visitorId}"),
+      );
 
       if (resInfo.statusCode == 200 && resPosts.statusCode == 200) {
         if (mounted) {
@@ -66,7 +62,7 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
           setState(() {
             _userProfile = data;
             _userPosts = jsonDecode(resPosts.body);
-            _isFollowing = data['is_following'] ?? false; // Ambil status dari server
+            _isFollowing = data['is_following'] ?? false;
             _isLoading = false;
           });
         }
@@ -77,12 +73,14 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
     }
   }
 
-  // --- FUNGSI TOMBOL FOLLOW ---
+  // 🔥 FUNGSI TOMBOL FOLLOW (UPDATED LOGIC)
   Future<void> _toggleFollow() async {
-    // Optimistic UI (Ubah dulu biar cepet)
+    // 1. Simpan state lama buat jaga-jaga kalau error
+    bool oldStatus = _isFollowing;
+
+    // 2. Optimistic Update (Ubah UI duluan biar kerasa cepet)
     setState(() {
       _isFollowing = !_isFollowing;
-      // Update angka followers sementara
       if (_userProfile != null) {
         int current = _userProfile!['stats']['followers'];
         _userProfile!['stats']['followers'] = _isFollowing ? current + 1 : current - 1;
@@ -96,13 +94,24 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
         body: jsonEncode({"follower_id": widget.visitorId, "followed_id": widget.userId}),
       );
 
-      if (response.statusCode != 200) {
-        // Kalau gagal, balikin statusnya
-        setState(() => _isFollowing = !_isFollowing);
+      if (response.statusCode == 200) {
+        // 🔥 3. UPDATE DENGAN DATA ASLI DARI SERVER (PENTING!)
+        // Ini memastikan frontend 100% sinkron sama database
+        final data = jsonDecode(response.body);
+        setState(() {
+          _isFollowing = data['is_following'];
+          if (_userProfile != null) {
+            _userProfile!['stats']['followers'] = data['total_followers'];
+          }
+        });
+      } else {
+        // Kalau gagal, balikin ke status lama
+        setState(() => _isFollowing = oldStatus);
       }
     } catch (e) {
       print("Error Follow: $e");
-      setState(() => _isFollowing = !_isFollowing);
+      // Kalau error koneksi, balikin ke status lama
+      setState(() => _isFollowing = oldStatus);
     }
   }
 
@@ -110,15 +119,11 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
   Widget build(BuildContext context) {
     if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    // Safety check kalau data null
     String headerUrl = _userProfile?['header_url'] ?? "";
     String avatarUrl = _userProfile?['avatar_url'] ?? "";
     String bio = _userProfile?['bio'] ?? "";
-
-    // Kalau username dari server kosong, pakai yang dari widget
     String displayUsername = _userProfile?['username'] ?? widget.username;
 
-    // Constants
     final double headerHeight = 600.h;
     final double maskingTopStart = 300.h;
     final double cardBorderRadius = 80.r;
@@ -180,7 +185,6 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     // NAMA
-                                    // NAMA
                                     Row(
                                       children: [
                                         Flexible(
@@ -191,7 +195,6 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                                           ),
                                         ),
                                         SizedBox(width: 10.w),
-                                        // 🔥 PASANG BADGE DI SINI
                                         VerificationBadge(tier: _userProfile?['tier'] ?? 'regular', size: 50.sp),
                                       ],
                                     ),
@@ -206,7 +209,7 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                                       ),
                                     SizedBox(height: 50.h),
 
-                                    // STATS (Sama kayak profile sendiri)
+                                    // STATS
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
@@ -257,14 +260,13 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                               ),
                             ),
 
-                            // 🔥 TOMBOL FOLLOW (GANTINYA EDIT PROFILE) 🔥
+                            // TOMBOL FOLLOW
                             Positioned(
                               top: 70.h,
                               right: 80.w,
                               child: ElevatedButton(
                                 onPressed: _toggleFollow,
                                 style: ElevatedButton.styleFrom(
-                                  // Kalau Following: Putih border Hitam, Kalau Follow: Biru
                                   backgroundColor: _isFollowing ? Colors.white : Colors.blue,
                                   side: _isFollowing ? const BorderSide(color: Colors.grey, width: 2) : BorderSide.none,
                                   padding: EdgeInsets.symmetric(horizontal: 50.w, vertical: 20.h),
@@ -285,7 +287,7 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                         ),
                       ),
 
-                      // C. JUDUL "Creations" (Pengganti TabBar)
+                      // C. JUDUL "Creations"
                       SliverToBoxAdapter(
                         child: Container(
                           color: Colors.white,
@@ -303,9 +305,9 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                         ),
                       ),
 
-                      // D. GRID POSTINGAN (Langsung Grid, tanpa TabBarView)
+                      // D. GRID POSTINGAN
                       SliverPadding(
-                        padding: EdgeInsets.symmetric(horizontal: 10.w), // Biar ada jarak dikit
+                        padding: EdgeInsets.symmetric(horizontal: 10.w),
                         sliver: _userPosts.isEmpty
                             ? SliverToBoxAdapter(
                                 child: Container(
@@ -329,14 +331,13 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                                   final post = _userPosts[index];
                                   return InkWell(
                                     onTap: () {
-                                      // Ke Detail Page
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
                                           builder: (_) => DetailPostPage(
                                             title: "Creations",
                                             username: displayUsername,
-                                            posts: _userPosts, // Cuma kirim creations
+                                            posts: _userPosts,
                                             initialIndex: index,
                                             currentUserId: widget.visitorId,
                                           ),
@@ -353,7 +354,6 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                               ),
                       ),
 
-                      // Padding Bawah
                       SliverToBoxAdapter(
                         child: Container(height: 200.h, color: Colors.white),
                       ),
@@ -364,7 +364,7 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
             ),
           ),
 
-          // LAYER 3: TOP BAR STICKY (BACK + AVATAR + NAME)
+          // LAYER 3: TOP BAR STICKY
           Positioned(
             top: 60.h,
             left: 0.w,
@@ -372,27 +372,19 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
             height: 250.h,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
-              // Kalau discroll ke bawah, kasih background putih + shadow
-              color: _showTopBar ? const Color.fromARGB(0, 255, 255, 255) : Colors.transparent,
+              color: _showTopBar ? const Color.fromARGB(255, 255, 255, 255) : Colors.transparent, // Fix Transparency
               padding: EdgeInsets.only(top: 80.h, left: 40.w, right: 40.w),
               child: Row(
                 children: [
-                  // TOMBOL BACK
                   IconButton(
-                    icon: Icon(
-                      Icons.arrow_back,
-                      color: _showTopBar ? const Color.fromARGB(255, 0, 0, 0) : Colors.white,
-                      size: 70.sp,
-                    ),
+                    icon: Icon(Icons.arrow_back, color: _showTopBar ? Colors.black : Colors.white, size: 70.sp),
                     onPressed: () => Navigator.pop(context),
                   ),
-
-                  // INFO (MUNCUL PAS SCROLL)
                   if (_showTopBar) ...[
                     SizedBox(width: 0.w),
                     CircleAvatar(
                       radius: 50.r,
-                      backgroundColor: const Color.fromARGB(255, 238, 238, 238),
+                      backgroundColor: Colors.grey.shade200,
                       backgroundImage: avatarUrl.isNotEmpty ? CachedNetworkImageProvider(avatarUrl) : null,
                     ),
                     SizedBox(width: 20.w),
@@ -403,7 +395,6 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                           style: TextStyle(fontSize: 50.sp, fontWeight: FontWeight.bold),
                         ),
                         SizedBox(width: 10.w),
-                        // 🔥 PASANG BADGE VERSI KECIL
                         VerificationBadge(tier: _userProfile?['tier'] ?? 'regular', size: 40.sp),
                       ],
                     ),
