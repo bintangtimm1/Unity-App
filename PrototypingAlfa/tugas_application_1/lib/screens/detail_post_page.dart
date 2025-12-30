@@ -29,7 +29,7 @@ class _DetailPostPageState extends State<DetailPostPage> {
   @override
   void initState() {
     super.initState();
-    _sanitizeAndLoadData(); // 🔥 Panggil fungsi pembersih
+    _sanitizeAndLoadData();
 
     // SCROLL LOGIC
     if (widget.initialIndex > 0) {
@@ -135,7 +135,7 @@ class _DetailPostPageState extends State<DetailPostPage> {
                       top: 150.h,
                       left: 40.w,
                       child: IconButton(
-                        icon: Icon(Icons.arrow_back, color: Colors.black, size: 80.sp),
+                        icon: Icon(Icons.arrow_back_ios, color: Colors.black, size: 65.sp),
                         onPressed: () {
                           Navigator.pop(context, true);
                         },

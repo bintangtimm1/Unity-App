@@ -300,7 +300,7 @@ class _SignupPageState extends State<SignupPage> {
                             ),
                             SizedBox(width: 20.w),
                             Text(
-                              "I agree to the Terms of Service\nand Privacy Policy.",
+                              "I agree to the Terms of Service and Privacy Policy.",
                               style: TextStyle(fontSize: 35.sp, fontWeight: FontWeight.w500, color: Colors.black),
                             ),
                           ],
@@ -311,7 +311,7 @@ class _SignupPageState extends State<SignupPage> {
                     // --- CHECKBOX 2 (Guidelines) ---
                     Positioned(
                       left: 113.w,
-                      top: 1610.h,
+                      top: 1590.h,
                       child: GestureDetector(
                         onTap: () {
                           setState(() {

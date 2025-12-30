@@ -6,19 +6,15 @@ import 'screens/main_screen.dart';
 import 'screens/admin_dashboard.dart';
 
 void main() {
-  // 2. TAMBAHKAN MANTRA INI
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Mantra biar aplikasi tembus sampai belakang Status Bar & Nav Bar
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-  // Bikin Nav Bar HP & Status Bar jadi Bening/Transparan
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent, // Atas bening
-      systemNavigationBarColor: Colors.white, // Bawah bening
-      systemNavigationBarIconBrightness: Brightness.dark, // Ikon tombol HP jadi gelap
-      statusBarIconBrightness: Brightness.dark, // Ikon baterai/jam jadi gelap
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.white,
+      systemNavigationBarIconBrightness: Brightness.dark,
+      statusBarIconBrightness: Brightness.dark,
     ),
   );
 
@@ -42,15 +38,16 @@ class MyApp extends StatelessWidget {
           // Login Page
           //home: const LoginPage(),
 
-          // Main Page
+          // Main Page user
           //home: const MainScreen(username: "Centaury (Dev)", userId: 1),
-          home: const MainScreen(username: "Photoshop (Dev)", userId: 3),
+          //home: const MainScreen(username: "Photoshop (Dev)", userId: 3),
+          //home: const MainScreen(username: "Illustrator (Dev)", userId: 5),
 
           //Profile Page
           //home: ProfilePage(userId: 1),
 
           //Admin Page
-          //home: const DevLauncherPage(),
+          home: const DevLauncherPage(),
         );
       },
     );
@@ -74,7 +71,6 @@ class DevLauncherPage extends StatelessWidget {
             ),
             const SizedBox(height: 50),
 
-            // TOMBOL MASUK APLIKASI USER
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
@@ -90,7 +86,6 @@ class DevLauncherPage extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // TOMBOL MASUK ADMIN PANEL (LUAR APLIKASI)
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),

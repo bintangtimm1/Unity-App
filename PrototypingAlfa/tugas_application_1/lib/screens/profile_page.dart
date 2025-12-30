@@ -7,6 +7,7 @@ import '../config.dart';
 import 'edit_profile_page.dart';
 import 'detail_post_page.dart';
 import '../widgets/verification_badge.dart';
+import '../widgets/blur_header.dart';
 
 class ProfilePage extends StatefulWidget {
   final int userId;
@@ -28,6 +29,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   bool _showTopBar = false;
   double _gridHeight = 1000.h;
 
+  // Variabel Blur (Default 0 / Bening)
+  double _headerBlur = 0.0;
+  double _headerOpacity = 0.0;
+
   // ignore: unused_field
   String _headerTitle = "Creations";
 
@@ -37,11 +42,23 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     _tabController = TabController(length: 3, vsync: this);
     _scrollController = ScrollController();
 
+    // 🔥 LOGIKA SCROLL BARU (INSTANT BLUR)
     _scrollController.addListener(() {
+      // Jika scroll sudah lewat 400.h (titik Top Bar muncul)
       if (_scrollController.offset > 400.h && !_showTopBar) {
-        setState(() => _showTopBar = true);
-      } else if (_scrollController.offset <= 400.h && _showTopBar) {
-        setState(() => _showTopBar = false);
+        setState(() {
+          _showTopBar = true;
+          _headerBlur = 4.0;
+          _headerOpacity = 0.4; // 🔥 LANGSUNG BLUR TEBAL (ON)
+        });
+      }
+      // Jika scroll balik ke atas (kurang dari 400.h)
+      else if (_scrollController.offset <= 400.h && _showTopBar) {
+        setState(() {
+          _showTopBar = false;
+          _headerBlur = 0.0;
+          _headerOpacity = 0.0; // 🔥 LANGSUNG BENING (OFF)
+        });
       }
     });
 
@@ -90,10 +107,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   Future<void> _fetchProfileData() async {
     try {
-      // 🔥 FIX: KIRIM visitor_id (ID KITA SENDIRI)
-      // Supaya server tau "Oh, yang liat postingan ini si pemilik akun sendiri,
-      // coba cek dia udah like postingannya sendiri belum?"
-
       final resInfo = await http.get(
         Uri.parse("${Config.baseUrl}/get_profile_info?user_id=${widget.userId}&visitor_id=${widget.userId}"),
       );
@@ -127,8 +140,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   void _onPostTap(int index, String type) async {
     List sourceList = (type == 'saved') ? _savedPosts : _userPosts;
-
-    // Deep copy biar aman
     List<Map<String, dynamic>> targetList = sourceList.map((item) {
       return Map<String, dynamic>.from(item);
     }).toList();
@@ -136,7 +147,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     if (type == 'creation') {
       String myAvatar = _userProfile!['avatar_url'] ?? "";
       String myName = _userProfile!['username'] ?? "User";
-
       for (var post in targetList) {
         post['avatar_url'] ??= myAvatar;
         post['username'] ??= myName;
@@ -163,7 +173,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     );
 
     if (shouldRefresh == true) {
-      _fetchProfileData(); // Refresh pas balik dari detail
+      _fetchProfileData();
     }
   }
 
@@ -185,20 +195,20 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       body: Stack(
         children: [
-          // LAYER 1: HEADER IMAGE
+          // LAYER 1: HEADER IMAGE (DINAMIS INSTANT BLUR)
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             height: headerHeight,
-            child: (headerUrl != null && headerUrl.isNotEmpty)
-                ? CachedNetworkImage(
-                    imageUrl: headerUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(color: Colors.grey.shade300),
-                    errorWidget: (context, url, error) => Container(color: Colors.grey.shade300),
-                  )
-                : Container(color: Colors.grey.shade300),
+
+            // Panggil BlurHeader
+            child: BlurHeader(
+              imageUrl: headerUrl,
+              height: headerHeight,
+              blurStrength: _headerBlur,
+              overlayOpacity: _headerOpacity,
+            ),
           ),
 
           // LAYER 2: CONTENT SCROLL
@@ -449,6 +459,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           ),
 
           // LAYER 3: TOP BAR
+          // LAYER 3: TOP BAR (STICKY HEADER)
           Positioned(
             top: 150.h,
             left: 50.w,
@@ -459,10 +470,12 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
               opacity: _showTopBar ? 1.0 : 0.0,
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 50.w),
-                color: Colors.white.withOpacity(0),
+                // Background transparan karena di belakangnya sudah ada BlurHeader
+                color: Colors.transparent,
                 alignment: Alignment.centerLeft,
                 child: Row(
                   children: [
+                    // 1. AVATAR KECIL
                     CircleAvatar(
                       radius: 50.r,
                       backgroundColor: Colors.grey.shade200,
@@ -471,9 +484,18 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                           : null,
                     ),
                     SizedBox(width: 30.w),
+
+                    // 2. USERNAME
                     Text(
                       username,
                       style: TextStyle(fontSize: 50.sp, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+
+                    // 3. 🔥 CENTANG EMAS (VERIFICATION BADGE) 🔥
+                    SizedBox(width: 15.w), // Kasih jarak dikit
+                    VerificationBadge(
+                      tier: _userProfile?['tier'] ?? 'regular',
+                      size: 40.sp, // Ukuran disesuaikan biar pas sama teks header
                     ),
                   ],
                 ),

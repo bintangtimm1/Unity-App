@@ -32,7 +32,7 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
         backgroundColor: const Color.fromARGB(0, 255, 255, 255),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color.fromARGB(255, 0, 0, 0), size: 24),
+          icon: const Icon(Icons.arrow_back_ios, color: Color.fromARGB(255, 0, 0, 0), size: 24),
           onPressed: () => Navigator.pop(context), // Batal
         ),
         centerTitle: true,

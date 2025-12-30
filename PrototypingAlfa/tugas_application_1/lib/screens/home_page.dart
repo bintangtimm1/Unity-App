@@ -4,7 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../config.dart';
 import '../widgets/post_item.dart';
-import 'notification_page.dart'; // 1. IMPORT HALAMAN BARU
+import 'notification_page.dart';
+import 'package:flutter/cupertino.dart';
 
 class HomePage extends StatefulWidget {
   final String username;
@@ -114,7 +115,7 @@ class HomePageState extends State<HomePage> {
                           clipBehavior: Clip.none,
                           children: [
                             // 1. ICON LONCENG (Ganti dari favorite_border)
-                            Icon(Icons.notifications_outlined, size: 70.sp, color: Colors.black),
+                            Icon(Icons.energy_savings_leaf_outlined, size: 75.sp, color: Colors.black),
 
                             // 2. TITIK MERAH (Hanya muncul kalau unread > 0)
                             if (_unreadCount > 0)

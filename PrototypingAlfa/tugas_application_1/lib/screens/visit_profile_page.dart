@@ -6,11 +6,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../config.dart';
 import 'detail_post_page.dart';
 import '../widgets/verification_badge.dart';
+import '../widgets/blur_header.dart';
 
 class VisitProfilePage extends StatefulWidget {
-  final int userId; // ID Orang yang dikunjungi
-  final String username; // Nama Orang
-  final int visitorId; // ID Kita
+  final int userId;
+  final String username;
+  final int visitorId;
 
   const VisitProfilePage({super.key, required this.userId, required this.username, required this.visitorId});
 
@@ -22,22 +23,34 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
   Map<String, dynamic>? _userProfile;
   List _userPosts = [];
   bool _isLoading = true;
-  bool _isFollowing = false; // Status Follow
+  bool _isFollowing = false;
 
   late ScrollController _scrollController;
   bool _showTopBar = false;
+  double _headerBlur = 0.0;
+
+  // 🔥 1. KEMBALIKAN LOGIKA HITUNG MANUAL
+  double _gridHeight = 0.0;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+
     _scrollController.addListener(() {
       if (_scrollController.offset > 400.h && !_showTopBar) {
-        setState(() => _showTopBar = true);
+        setState(() {
+          _showTopBar = true;
+          _headerBlur = 4.0;
+        });
       } else if (_scrollController.offset <= 400.h && _showTopBar) {
-        setState(() => _showTopBar = false);
+        setState(() {
+          _showTopBar = false;
+          _headerBlur = 0.0;
+        });
       }
     });
+
     _fetchProfileData();
   }
 
@@ -64,6 +77,9 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
             _userPosts = jsonDecode(resPosts.body);
             _isFollowing = data['is_following'] ?? false;
             _isLoading = false;
+
+            // 🔥 2. HITUNG TINGGI SETELAH DATA DAPAT
+            _calculateGridHeight();
           });
         }
       }
@@ -73,12 +89,29 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
     }
   }
 
-  // 🔥 FUNGSI TOMBOL FOLLOW (UPDATED LOGIC)
-  Future<void> _toggleFollow() async {
-    // 1. Simpan state lama buat jaga-jaga kalau error
-    bool oldStatus = _isFollowing;
+  // 🔥 3. RUMUS MATEMATIKA (MIRIP PROFILE PAGE)
+  void _calculateGridHeight() {
+    if (_userPosts.isEmpty) {
+      // Kalau kosong, tingginya CUKUP segini aja (misal 500.h).
+      // JANGAN 1.sh (layar penuh), nanti dia jadi bisa discroll jauh padahal kosong.
+      // Dengan 500.h, dia bakal "membal" cantik karena kontennya < layar.
+      _gridHeight = 500.h;
+    } else {
+      // Hitung tinggi berdasarkan jumlah baris
+      double itemWidth = 1.sw / 3; // Lebar per item
+      int rows = (_userPosts.length / 3).ceil();
 
-    // 2. Optimistic Update (Ubah UI duluan biar kerasa cepet)
+      // Rumus: (Total Baris * Tinggi Item) + (Total Gap) + Extra Space Bawah
+      _gridHeight = (rows * itemWidth) + (rows * 2.w) + 200.h;
+
+      // Kalo postingan dikit (misal cuma 1 baris), kita paksa minimal 500.h
+      // Supaya background putihnya gak putus mendadak.
+      if (_gridHeight < 500.h) _gridHeight = 500.h;
+    }
+  }
+
+  Future<void> _toggleFollow() async {
+    bool oldStatus = _isFollowing;
     setState(() {
       _isFollowing = !_isFollowing;
       if (_userProfile != null) {
@@ -95,8 +128,6 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
       );
 
       if (response.statusCode == 200) {
-        // 🔥 3. UPDATE DENGAN DATA ASLI DARI SERVER (PENTING!)
-        // Ini memastikan frontend 100% sinkron sama database
         final data = jsonDecode(response.body);
         setState(() {
           _isFollowing = data['is_following'];
@@ -105,12 +136,9 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
           }
         });
       } else {
-        // Kalau gagal, balikin ke status lama
         setState(() => _isFollowing = oldStatus);
       }
     } catch (e) {
-      print("Error Follow: $e");
-      // Kalau error koneksi, balikin ke status lama
       setState(() => _isFollowing = oldStatus);
     }
   }
@@ -138,13 +166,12 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
             left: 0,
             right: 0,
             height: headerHeight,
-            child: headerUrl.isNotEmpty
-                ? CachedNetworkImage(
-                    imageUrl: headerUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(color: Colors.grey.shade300),
-                  )
-                : Container(color: Colors.grey.shade300),
+            child: BlurHeader(
+              imageUrl: headerUrl,
+              height: headerHeight,
+              blurStrength: _headerBlur,
+              overlayOpacity: 0.3,
+            ),
           ),
 
           // LAYER 2: BODY SCROLL
@@ -184,7 +211,6 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // NAMA
                                     Row(
                                       children: [
                                         Flexible(
@@ -198,7 +224,6 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                                         VerificationBadge(tier: _userProfile?['tier'] ?? 'regular', size: 50.sp),
                                       ],
                                     ),
-                                    // BIO
                                     if (bio.isNotEmpty)
                                       Padding(
                                         padding: EdgeInsets.only(top: 15.h),
@@ -209,7 +234,6 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                                       ),
                                     SizedBox(height: 50.h),
 
-                                    // STATS
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
@@ -244,8 +268,6 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                                 ),
                               ),
                             ),
-
-                            // AVATAR
                             Positioned(
                               top: -120.h,
                               left: 80.w,
@@ -259,8 +281,6 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                                 ),
                               ),
                             ),
-
-                            // TOMBOL FOLLOW
                             Positioned(
                               top: 70.h,
                               right: 80.w,
@@ -287,75 +307,65 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                         ),
                       ),
 
-                      // C. JUDUL "Creations"
+                      // C. STICKY HEADER "CREATIONS"
+                      SliverPersistentHeader(pinned: true, delegate: _CreationsHeaderDelegate()),
                       SliverToBoxAdapter(
                         child: Container(
                           color: Colors.white,
-                          padding: EdgeInsets.symmetric(horizontal: 80.w, vertical: 30.h),
-                          child: Row(
-                            children: [
-                              Icon(Icons.grid_view_rounded, size: 60.sp),
-                              SizedBox(width: 20.w),
-                              Text(
-                                "Creations",
-                                style: TextStyle(fontSize: 45.sp, fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // D. GRID POSTINGAN
-                      SliverPadding(
-                        padding: EdgeInsets.symmetric(horizontal: 10.w),
-                        sliver: _userPosts.isEmpty
-                            ? SliverToBoxAdapter(
-                                child: Container(
-                                  height: 500.h,
-                                  color: Colors.white,
+                          height: _gridHeight,
+                          padding: EdgeInsets.zero,
+                          alignment: Alignment.topCenter,
+                          child: _userPosts.isEmpty
+                              ? Container(
+                                  height: 300.h,
                                   alignment: Alignment.center,
                                   child: Text(
                                     "Belum ada postingan",
                                     style: TextStyle(fontSize: 40.sp, color: Colors.grey),
                                   ),
-                                ),
-                              )
-                            : SliverGrid(
-                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 3,
-                                  crossAxisSpacing: 5.w,
-                                  mainAxisSpacing: 5.w,
-                                  childAspectRatio: 1.0,
-                                ),
-                                delegate: SliverChildBuilderDelegate((context, index) {
-                                  final post = _userPosts[index];
-                                  return InkWell(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => DetailPostPage(
-                                            title: "Creations",
-                                            username: displayUsername,
-                                            posts: _userPosts,
-                                            initialIndex: index,
-                                            currentUserId: widget.visitorId,
+                                )
+                              : GridView.builder(
+                                  padding: EdgeInsets.zero,
+                                  physics: const NeverScrollableScrollPhysics(), // Scroll ikut parent
+                                  shrinkWrap: true,
+                                  itemCount: _userPosts.length,
+                                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3,
+                                    crossAxisSpacing: 2.w,
+                                    mainAxisSpacing: 2.w,
+                                    childAspectRatio: 1.0,
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final post = _userPosts[index];
+                                    return InkWell(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => DetailPostPage(
+                                              title: "Creations",
+                                              username: displayUsername,
+                                              posts: _userPosts,
+                                              initialIndex: index,
+                                              currentUserId: widget.visitorId,
+                                            ),
                                           ),
-                                        ),
-                                      );
-                                    },
-                                    child: CachedNetworkImage(
-                                      imageUrl: post['image_url'],
-                                      fit: BoxFit.cover,
-                                      placeholder: (_, __) => Container(color: Colors.grey.shade200),
-                                    ),
-                                  );
-                                }, childCount: _userPosts.length),
-                              ),
+                                        );
+                                      },
+                                      child: CachedNetworkImage(
+                                        imageUrl: post['image_url'],
+                                        fit: BoxFit.cover,
+                                        placeholder: (_, __) => Container(color: Colors.grey.shade200),
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
                       ),
 
+                      // Extra padding (Opsional, kalau mau ada ruang napas di bawah banget)
                       SliverToBoxAdapter(
-                        child: Container(height: 200.h, color: Colors.white),
+                        child: Container(height: 720.h, color: Colors.white),
                       ),
                     ],
                   ),
@@ -372,12 +382,12 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
             height: 250.h,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
-              color: _showTopBar ? const Color.fromARGB(255, 255, 255, 255) : Colors.transparent, // Fix Transparency
+              color: Colors.transparent,
               padding: EdgeInsets.only(top: 80.h, left: 40.w, right: 40.w),
               child: Row(
                 children: [
                   IconButton(
-                    icon: Icon(Icons.arrow_back, color: _showTopBar ? Colors.black : Colors.white, size: 70.sp),
+                    icon: Icon(Icons.arrow_back_ios, color: Colors.white, size: 70.sp),
                     onPressed: () => Navigator.pop(context),
                   ),
                   if (_showTopBar) ...[
@@ -392,7 +402,7 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                       children: [
                         Text(
                           displayUsername,
-                          style: TextStyle(fontSize: 50.sp, fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: 50.sp, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                         SizedBox(width: 10.w),
                         VerificationBadge(tier: _userProfile?['tier'] ?? 'regular', size: 40.sp),
@@ -422,4 +432,36 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
       ],
     );
   }
+}
+
+class _CreationsHeaderDelegate extends SliverPersistentHeaderDelegate {
+  @override
+  double get minExtent => 120.h;
+  @override
+  double get maxExtent => 120.h;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: Colors.white,
+      // Padding boleh dihapus atau dikecilkan kalau mau benar-benar center tanpa gangguan
+      padding: EdgeInsets.symmetric(horizontal: 20.w),
+      alignment: Alignment.center, // Container rata tengah
+      child: Row(
+        // 🔥 INI KUNCINYA KING! BIAR ITEM DI DALAM ROW JADI TENGAH 🔥
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.grid_view_rounded, size: 60.sp),
+          SizedBox(width: 20.w),
+          Text(
+            "Creations",
+            style: TextStyle(fontSize: 45.sp, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_CreationsHeaderDelegate oldDelegate) => false;
 }

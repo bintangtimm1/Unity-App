@@ -58,11 +58,23 @@ class _NotificationPageState extends State<NotificationPage> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
         centerTitle: true,
+
+        // 🔥 3. GARIS PEMBATAS TIPIS
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: Colors.grey.shade200, // Warna garisnya
+            height: 1.0,
+          ),
+        ),
+
         leading: GestureDetector(
           onTap: () => Navigator.pop(context),
-          child: Icon(Icons.arrow_back, color: Colors.black, size: 60.sp),
+          child: Icon(Icons.arrow_back_ios, color: Colors.black, size: 60.sp),
         ),
         title: Text(
           "Notifications",

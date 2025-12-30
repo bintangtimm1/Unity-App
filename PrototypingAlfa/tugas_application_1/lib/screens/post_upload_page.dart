@@ -6,19 +6,15 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../widgets/caption_editor_page.dart';
 import 'tag_search_page.dart';
 import '../config.dart';
+// 🔥 1. IMPORT MAIN SCREEN BIAR BISA DIPANGGIL
+import 'main_screen.dart';
 
 class PostUploadPage extends StatefulWidget {
-  // 🔥 KITA TERIMA FILE JADI (BUKAN ASSET MENTAH LAGI)
   final File imageFile;
   final bool isSquareMode;
   final int userId;
 
-  const PostUploadPage({
-    super.key,
-    required this.imageFile, // File hasil crop dari halaman sebelah
-    required this.isSquareMode,
-    required this.userId,
-  });
+  const PostUploadPage({super.key, required this.imageFile, required this.isSquareMode, required this.userId});
 
   @override
   State<PostUploadPage> createState() => _PostUploadPageState();
@@ -44,14 +40,28 @@ class _PostUploadPageState extends State<PostUploadPage> {
       request.fields['is_square'] = widget.isSquareMode.toString();
       request.fields['tagged_users'] = jsonEncode(_taggedUsers.map((u) => u.id).toList());
 
-      // 🔥 LANGSUNG UPLOAD FILE YANG DITERIMA
       var pic = await http.MultipartFile.fromPath("image", widget.imageFile.path);
       request.files.add(pic);
 
       var response = await request.send();
 
       if (response.statusCode == 201) {
-        if (mounted) Navigator.popUntil(context, (route) => route.isFirst);
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MainScreen(
+                // 🔥 FIX 1: Ganti 'currentUserId' jadi 'userId'
+                userId: widget.userId,
+
+                // 🔥 FIX 2: MainScreen minta username, kita kasih default dulu
+                // (Nanti MainScreen bakal load ulang data aslinya kok)
+                username: "User",
+              ),
+            ),
+            (route) => false, // Hapus semua history back button
+          );
+        }
       } else {
         print("Gagal Upload: ${response.statusCode}");
       }
@@ -103,7 +113,7 @@ class _PostUploadPageState extends State<PostUploadPage> {
                       bottom: 40.h,
                       child: GestureDetector(
                         onTap: () => Navigator.pop(context),
-                        child: Icon(Icons.arrow_back, size: 60.sp),
+                        child: Icon(Icons.arrow_back_ios, size: 60.sp),
                       ),
                     ),
                     Positioned(
@@ -145,13 +155,11 @@ class _PostUploadPageState extends State<PostUploadPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 🔥 PREVIEW IMAGE: CUMA NAMPILIN FILE JADI 🔥
+                    // PREVIEW IMAGE
                     Container(
                       width: 1.sw,
-                      // Tingginya sesuai mode biar layout rapi
                       height: widget.isSquareMode ? 1.sw : 1.25.sw,
                       color: Colors.white,
-                      // Tampilkan file hasil crop tadi
                       child: Image.file(widget.imageFile, fit: BoxFit.cover),
                     ),
 

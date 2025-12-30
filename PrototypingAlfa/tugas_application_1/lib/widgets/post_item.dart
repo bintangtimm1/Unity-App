@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:cached_network_image/cached_network_image.dart'; // 1. IMPORT WAJIB
+import 'package:cached_network_image/cached_network_image.dart';
 import '../config.dart';
 import '../screens/profile_page.dart';
 import '../screens/visit_profile_page.dart';
@@ -17,6 +17,9 @@ class PostItem extends StatefulWidget {
   final Function(bool isSaved)? onSaveChanged;
   final VoidCallback? onNavigateToProfileTab;
 
+  // 🔥 FITUR BARU: CALLBACK TOMBOL KOMENTAR
+  final VoidCallback? onCommentTap;
+
   const PostItem({
     super.key,
     required this.post,
@@ -24,6 +27,7 @@ class PostItem extends StatefulWidget {
     this.onLikeChanged,
     this.onSaveChanged,
     this.onNavigateToProfileTab,
+    this.onCommentTap, // 🔥 Tambahkan di constructor
   });
 
   @override
@@ -61,9 +65,6 @@ class _PostItemState extends State<PostItem> {
         isLiked = widget.post['is_liked'] ?? false;
         totalLikes = widget.post['total_likes'] ?? 0;
       });
-    }
-    if (widget.post['is_following'] != isFollowing) {
-      setState(() => isFollowing = widget.post['is_following'] ?? false);
     }
   }
 
@@ -109,11 +110,9 @@ class _PostItemState extends State<PostItem> {
       );
       if (response.statusCode != 200) {
         setState(() => isSaved = oldStatus);
-        if (widget.onSaveChanged != null) widget.onSaveChanged!(oldStatus);
       }
     } catch (e) {
       setState(() => isSaved = oldStatus);
-      if (widget.onSaveChanged != null) widget.onSaveChanged!(oldStatus);
     }
   }
 
@@ -129,16 +128,8 @@ class _PostItemState extends State<PostItem> {
           isSaved: isSaved,
           isFollowing: isFollowing,
           onSaveToggle: _toggleSave,
-          onFollowToggle: (bool newStatus) {
-            setState(() {
-              isFollowing = newStatus;
-            });
-          },
-          onPostDeleted: () {
-            setState(() {
-              isDeleted = true;
-            });
-          },
+          onFollowToggle: (val) => setState(() => isFollowing = val),
+          onPostDeleted: () => setState(() => isDeleted = true),
         );
       },
     );
@@ -150,9 +141,6 @@ class _PostItemState extends State<PostItem> {
 
     String safeUsername = widget.post['username'] ?? "User";
     String safeInitial = safeUsername.isNotEmpty ? safeUsername[0] : "U";
-
-    // 🔥 LOGIC SAKTI 1: Cek Rasio dari Backend
-    // Kalau backend belum support, default ke true (Square) biar aman
     bool isSquare = widget.post['is_square'] ?? true;
 
     return Column(
@@ -184,14 +172,13 @@ class _PostItemState extends State<PostItem> {
                   backgroundColor: Colors.grey.shade200,
                   child: widget.post['profile_pic_url'] != null && widget.post['profile_pic_url'] != ""
                       ? ClipOval(
-                          // 🔥 LOGIC SAKTI 2: Cache Profile Picture
                           child: CachedNetworkImage(
                             imageUrl: widget.post['profile_pic_url'],
                             fit: BoxFit.cover,
                             width: 100.r,
                             height: 100.r,
-                            placeholder: (context, url) => Container(color: Colors.grey.shade200),
-                            errorWidget: (context, url, error) =>
+                            placeholder: (_, __) => Container(color: Colors.grey.shade200),
+                            errorWidget: (_, __, ___) =>
                                 Text(safeInitial.toUpperCase(), style: TextStyle(fontSize: 35.sp)),
                           ),
                         )
@@ -201,7 +188,6 @@ class _PostItemState extends State<PostItem> {
                         ),
                 ),
                 SizedBox(width: 20.w),
-
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,7 +205,7 @@ class _PostItemState extends State<PostItem> {
                           VerificationBadge(tier: widget.post['tier'] ?? 'regular', size: 35.sp),
                         ],
                       ),
-                      if (widget.post['location_name'] != null && widget.post['location_name'] != "")
+                      if (widget.post['location_name'] != null)
                         Text(
                           widget.post['location_name'],
                           style: TextStyle(fontSize: 32.sp, color: Colors.black54),
@@ -229,11 +215,9 @@ class _PostItemState extends State<PostItem> {
                     ],
                   ),
                 ),
-
                 GestureDetector(
                   onTap: _showOptions,
                   child: Container(
-                    color: Colors.transparent,
                     padding: EdgeInsets.all(10.w),
                     child: Icon(Icons.more_horiz, color: Colors.black, size: 60.sp),
                   ),
@@ -243,48 +227,25 @@ class _PostItemState extends State<PostItem> {
           ),
         ),
 
-        // --- 2. GAMBAR UTAMA (CACHE + DYNAMIC RATIO) ---
+        // --- 2. IMAGE ---
         SizedBox(
           width: 1.sw,
           child: AspectRatio(
-            // 🔥 LOGIC SAKTI 3: Rasio Dinamis
-            // Kalau Square (true) -> 1.0
-            // Kalau Portrait (false) -> 0.8 (4:5)
             aspectRatio: isSquare ? 1.0 : 0.8,
-
-            // 🔥 LOGIC SAKTI 4: Cache Main Image + Optimasi RAM
             child: CachedNetworkImage(
               imageUrl: widget.post['image_url'],
-              fit: BoxFit.cover, // Wajib cover biar rapi
-              // RESIZE DI RAM (Biar HP King gak panas walau gambar 4K)
+              fit: BoxFit.cover,
               memCacheWidth: 1080,
-
-              // Tampilan pas loading (Skeleton / Spinner)
-              placeholder: (context, url) => Container(
-                color: Colors.grey.shade100,
-                child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey)),
-              ),
-
-              // Tampilan kalau error
-              errorWidget: (context, url, error) => Container(
+              placeholder: (_, __) => Container(color: Colors.grey.shade100),
+              errorWidget: (_, __, ___) => Container(
                 color: Colors.grey.shade200,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.broken_image, size: 50.sp, color: Colors.grey),
-                    SizedBox(height: 10.h),
-                    Text(
-                      "Gagal memuat",
-                      style: TextStyle(color: Colors.grey, fontSize: 24.sp),
-                    ),
-                  ],
-                ),
+                child: Icon(Icons.broken_image, size: 50.sp),
               ),
             ),
           ),
         ),
 
-        // --- 3. ACTION BAR ---
+        // --- 3. ACTIONS ---
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 30.h),
           child: Row(
@@ -299,19 +260,26 @@ class _PostItemState extends State<PostItem> {
               ),
               SizedBox(width: 24.w),
 
+              // 🔥 MODIFIKASI TOMBOL KOMENTAR 🔥
               GestureDetector(
                 onTap: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => CommentSheet(postId: widget.post['id'], currentUserId: widget.currentUserId),
-                  );
+                  // Kalau ada instruksi khusus (misal dari Detail Page), pakai itu.
+                  if (widget.onCommentTap != null) {
+                    widget.onCommentTap!();
+                  } else {
+                    // Kalau gak ada (di Home Page), buka Sheet biasa.
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) =>
+                          CommentSheet(postId: widget.post['id'], currentUserId: widget.currentUserId),
+                    );
+                  }
                 },
                 child: Image.asset('assets/images/Comment Button.png', width: 80.w, height: 80.w, fit: BoxFit.contain),
               ),
               const Spacer(),
-
               GestureDetector(
                 onTap: _toggleSave,
                 child: Icon(isSaved ? Icons.bookmark : Icons.bookmark_border, color: Colors.black, size: 80.sp),
