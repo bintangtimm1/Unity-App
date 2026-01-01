@@ -4,6 +4,7 @@ import '../widgets/custom_navbar.dart';
 import 'home_page.dart';
 import 'add_post_page.dart';
 import 'profile_page.dart';
+import 'community_page.dart';
 
 class MainScreen extends StatefulWidget {
   final String username;
@@ -37,9 +38,7 @@ class _MainScreenState extends State<MainScreen> {
       ),
 
       // Index 1: Community
-      const Scaffold(
-        body: Center(child: Text("Halaman Community", style: TextStyle(fontSize: 40))),
-      ),
+      CommunityPage(userId: widget.userId),
 
       // Index 2: Add Post Page
       AddPostPage(userId: widget.userId),
