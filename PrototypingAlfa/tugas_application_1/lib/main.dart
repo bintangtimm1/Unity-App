@@ -39,7 +39,7 @@ class MyApp extends StatelessWidget {
           //home: const LoginPage(),
 
           // Main Page user
-          //home: const MainScreen(username: "Centaury (Dev)", userId: 1),
+          home: const MainScreen(username: "Centaury (Dev)", userId: 1),
           //home: const MainScreen(username: "Photoshop (Dev)", userId: 3),
           //home: const MainScreen(username: "Illustrator (Dev)", userId: 5),
 
@@ -47,7 +47,7 @@ class MyApp extends StatelessWidget {
           //home: ProfilePage(userId: 1),
 
           //Admin Page
-          home: const DevLauncherPage(),
+          //home: const DevLauncherPage(),
         );
       },
     );

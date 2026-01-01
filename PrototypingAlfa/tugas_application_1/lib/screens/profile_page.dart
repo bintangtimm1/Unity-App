@@ -8,6 +8,7 @@ import 'edit_profile_page.dart';
 import 'detail_post_page.dart';
 import '../widgets/verification_badge.dart';
 import '../widgets/blur_header.dart';
+import 'settings_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final int userId;
@@ -335,20 +336,25 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                               top: 70.h,
                               right: 80.w,
                               child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  final result = await Navigator.push(
+                                onPressed: () {
+                                  // 1. SIAPKAN DATA (KAWIN SILANG DATA)
+                                  // Kita ambil data dari API (_userProfile), tapi kita SUNTIKKAN 'id' dari widget.userId
+                                  // karena EditProfilePage butuh 'id' buat request ke backend.
+                                  final Map<String, dynamic> dataToSend = Map.from(_userProfile!);
+                                  dataToSend['id'] = widget.userId;
+
+                                  // 2. NAVIGASI DENGAN FORMAT BARU
+                                  Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => EditProfilePage(
-                                        userId: widget.userId,
-                                        currentUsername: username,
-                                        currentBio: bio,
-                                        currentAvatarUrl: avatarUrl ?? "",
-                                        currentHeaderUrl: headerUrl ?? "",
+                                        // Kirim paket data lengkap (+ ID yang udah disuntik)
+                                        userProfile: dataToSend,
+                                        // Kirim fungsi refresh biar pas balik data otomatis update
+                                        onProfileUpdated: _fetchProfileData,
                                       ),
                                     ),
                                   );
-                                  if (result == true) _fetchProfileData();
                                 },
                                 icon: Icon(Icons.edit_outlined, color: Colors.white, size: 50.sp),
                                 label: Text(
@@ -491,8 +497,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                       style: TextStyle(fontSize: 50.sp, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
 
-                    // 3. 🔥 CENTANG EMAS (VERIFICATION BADGE) 🔥
-                    SizedBox(width: 15.w), // Kasih jarak dikit
+                    SizedBox(width: 15.w),
                     VerificationBadge(
                       tier: _userProfile?['tier'] ?? 'regular',
                       size: 40.sp, // Ukuran disesuaikan biar pas sama teks header
@@ -500,6 +505,36 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                   ],
                 ),
               ),
+            ),
+          ),
+          Positioned(
+            top: 180.h,
+            right: 100.w,
+            child: Row(
+              children: [
+                // 1. TOMBOL COURSE
+                GestureDetector(
+                  onTap: () {
+                    print("Course dipencet");
+                    // Nanti arahkan ke CoursePage di sini
+                  },
+                  child: Image.asset('assets/images/Course Button.png', width: 70.w, height: 70.w),
+                ),
+
+                SizedBox(width: 50.w),
+
+                // 2. TOMBOL SETTING (SELALU PUTIH)
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
+                  },
+                  child: Icon(
+                    Icons.settings,
+                    size: 70.sp,
+                    color: Colors.white, // Putih statis sesuai request
+                  ),
+                ),
+              ],
             ),
           ),
         ],

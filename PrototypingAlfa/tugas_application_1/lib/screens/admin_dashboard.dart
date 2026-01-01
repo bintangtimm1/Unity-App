@@ -50,7 +50,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("ADMIN DASHBOARD 🛠️"),
+        title: const Text("ADMIN DASHBOARD"),
         backgroundColor: Colors.black87,
         foregroundColor: Colors.white,
       ),
@@ -71,9 +71,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     trailing: PopupMenuButton<String>(
                       onSelected: (value) => _updateTier(user['id'], value),
                       itemBuilder: (context) => [
-                        const PopupMenuItem(value: 'regular', child: Text("Regular (Polos)")),
-                        const PopupMenuItem(value: 'blue', child: Text("Blue (Verified)")),
-                        const PopupMenuItem(value: 'gold', child: Text("Gold (Sultan)")),
+                        const PopupMenuItem(value: 'regular', child: Text("Regular")),
+                        const PopupMenuItem(value: 'blue', child: Text("Blue")),
+                        const PopupMenuItem(value: 'gold', child: Text("Gold")),
                       ],
                       icon: const Icon(Icons.edit, color: Colors.blue),
                     ),
