@@ -5,8 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../widgets/caption_editor_page.dart';
 import 'tag_search_page.dart';
+import 'location_search_page.dart'; // 🔥 1. IMPORT SEARCH PAGE
 import '../config.dart';
-// 🔥 1. IMPORT MAIN SCREEN BIAR BISA DIPANGGIL
 import 'main_screen.dart';
 
 class PostUploadPage extends StatefulWidget {
@@ -23,6 +23,7 @@ class PostUploadPage extends StatefulWidget {
 class _PostUploadPageState extends State<PostUploadPage> {
   String _captionText = "";
   List<UserStub> _taggedUsers = [];
+  String? _selectedLocation; // 🔥 2. VARIABEL LOKASI
   bool _isUploading = false;
 
   // --- FUNGSI UPLOAD ---
@@ -36,7 +37,10 @@ class _PostUploadPageState extends State<PostUploadPage> {
 
       request.fields['user_id'] = widget.userId.toString();
       request.fields['caption'] = _captionText;
-      request.fields['location'] = "Jakarta, Indonesia";
+
+      // 🔥 3. KIRIM LOKASI ASLI (KALAU KOSONG KIRIM STRING KOSONG)
+      request.fields['location'] = _selectedLocation ?? "";
+
       request.fields['is_square'] = widget.isSquareMode.toString();
       request.fields['tagged_users'] = jsonEncode(_taggedUsers.map((u) => u.id).toList());
 
@@ -50,16 +54,9 @@ class _PostUploadPageState extends State<PostUploadPage> {
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(
-              builder: (context) => MainScreen(
-                // 🔥 FIX 1: Ganti 'currentUserId' jadi 'userId'
-                userId: widget.userId,
-
-                // 🔥 FIX 2: MainScreen minta username, kita kasih default dulu
-                // (Nanti MainScreen bakal load ulang data aslinya kok)
-                username: "User",
-              ),
+              builder: (context) => MainScreen(userId: widget.userId, username: "User"),
             ),
-            (route) => false, // Hapus semua history back button
+            (route) => false,
           );
         }
       } else {
@@ -86,6 +83,18 @@ class _PostUploadPageState extends State<PostUploadPage> {
       MaterialPageRoute(builder: (context) => TagSearchPage(alreadyTagged: _taggedUsers)),
     );
     if (result != null && result is List<UserStub>) setState(() => _taggedUsers = result);
+  }
+
+  // 🔥 4. FUNGSI BUKA SEARCH LOCATION
+  void _openLocationSearch() async {
+    final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const LocationSearchPage()));
+
+    // Kalau user milih kota (result tidak null)
+    if (result != null && result is String) {
+      setState(() {
+        _selectedLocation = result;
+      });
+    }
   }
 
   @override
@@ -185,8 +194,18 @@ class _PostUploadPageState extends State<PostUploadPage> {
                     ),
 
                     SizedBox(height: 50.h),
+
+                    // MENU ITEMS
                     _buildMenuItem("Tag People", Icons.person_outline, onTap: _openTagSearch),
-                    _buildMenuItem("Add Location", Icons.location_on_outlined),
+
+                    // 🔥 MENU LOCATION SUDAH INTERAKTIF
+                    _buildMenuItem(
+                      _selectedLocation ?? "Add Location", // Tampilkan kota kalau sudah dipilih
+                      Icons.location_on_outlined,
+                      onTap: _openLocationSearch,
+                      isActive: _selectedLocation != null, // Ubah warna kalau sudah dipilih
+                    ),
+
                     _buildMenuItem("Add Music", Icons.music_note_outlined),
                     SizedBox(height: 100.h),
                   ],
@@ -205,7 +224,8 @@ class _PostUploadPageState extends State<PostUploadPage> {
     );
   }
 
-  Widget _buildMenuItem(String title, IconData icon, {VoidCallback? onTap}) {
+  // 🔥 UPDATE WIDGET MENU BIAR BISA BERUBAH WARNA
+  Widget _buildMenuItem(String title, IconData icon, {VoidCallback? onTap, bool isActive = false}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -218,14 +238,25 @@ class _PostUploadPageState extends State<PostUploadPage> {
         ),
         child: Row(
           children: [
-            Icon(icon, size: 50.sp, color: Colors.black),
-            SizedBox(width: 30.w),
-            Text(
-              title,
-              style: TextStyle(fontSize: 32.sp, fontWeight: FontWeight.w500),
+            Icon(
+              icon,
+              size: 50.sp,
+              color: isActive ? Colors.blue : Colors.black, // Ikon jadi biru kalau aktif
             ),
-            const Spacer(),
-            Icon(Icons.chevron_right, size: 50.sp, color: Colors.grey),
+            SizedBox(width: 30.w),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 32.sp,
+                  fontWeight: FontWeight.w500,
+                  color: isActive ? Colors.blue : Colors.black, // Teks jadi biru kalau aktif
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (!isActive) // Hilangkan panah kalau sudah ada isinya (opsional, biar bersih)
+              Icon(Icons.chevron_right, size: 50.sp, color: Colors.grey),
           ],
         ),
       ),

@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:http/http.dart' as http;
+import 'package:cached_network_image/cached_network_image.dart'; // Jangan lupa import ini
 import '../config.dart';
 import 'add_community_page.dart';
+import 'community_profile_page.dart'; // 🔥 IMPORT HALAMAN PROFIL
 
 class CommunityPage extends StatefulWidget {
   final int userId;
@@ -16,31 +18,50 @@ class CommunityPage extends StatefulWidget {
 class _CommunityPageState extends State<CommunityPage> {
   final PageController _pageController = PageController();
   int _currentIndex = 0;
-  String _userTier = 'regular'; // Default regular
-  // ignore: unused_field
+  String _userTier = 'regular';
+
+  // 🔥 DATA KOMUNITAS
+  List _communities = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _fetchUserTier();
+    _fetchCommunities(); // 🔥 AMBIL DATA SAAT MASUK
   }
 
+  // AMBIL DATA TIER
   Future<void> _fetchUserTier() async {
     try {
       final response = await http.get(Uri.parse("${Config.baseUrl}/get_profile_info?user_id=${widget.userId}"));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        if (mounted) setState(() => _userTier = data['tier'] ?? 'regular');
+      }
+    } catch (e) {
+      print("Error check tier: $e");
+    }
+  }
+
+  // 🔥 AMBIL DATA KOMUNITAS DARI SERVER
+  // 🔥 AMBIL DATA KOMUNITAS DARI SERVER
+  Future<void> _fetchCommunities() async {
+    try {
+      // 🔥 UPDATE: Kirim parameter user_id biar backend tau siapa yg minta
+      final response = await http.get(Uri.parse("${Config.baseUrl}/get_communities?user_id=${widget.userId}"));
+
+      if (response.statusCode == 200) {
         if (mounted) {
           setState(() {
-            // Ambil data tier dari database (isinya 'regular', 'blue', atau 'gold')
-            _userTier = data['tier'] ?? 'regular';
+            _communities = jsonDecode(response.body);
             _isLoading = false;
           });
         }
       }
     } catch (e) {
-      print("Error check tier: $e");
+      print("Error fetch communities: $e");
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -50,9 +71,7 @@ class _CommunityPageState extends State<CommunityPage> {
     super.dispose();
   }
 
-  void _onPageChanged(int index) {
-    setState(() => _currentIndex = index);
-  }
+  void _onPageChanged(int index) => setState(() => _currentIndex = index);
 
   void _onTabTapped(int index) {
     _pageController.animateToPage(index, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
@@ -65,7 +84,7 @@ class _CommunityPageState extends State<CommunityPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // --- CUSTOM HEADER ---
+            // --- HEADER ---
             Container(
               padding: EdgeInsets.symmetric(horizontal: 50.w, vertical: 30.h),
               child: Row(
@@ -96,10 +115,9 @@ class _CommunityPageState extends State<CommunityPage> {
                 ],
               ),
             ),
-
             SizedBox(height: 20.h),
 
-            // --- PAGE VIEW ---
+            // --- CONTENT ---
             Expanded(
               child: PageView(
                 controller: _pageController,
@@ -115,8 +133,6 @@ class _CommunityPageState extends State<CommunityPage> {
 
   // --- TAB 1: COMMUNITY ---
   Widget _buildCommunityTab() {
-    // 🔥 FIX LOGIC: Cek 'blue' (Verified) atau 'gold' (Vendor)
-    // Supaya aman, kita cek lowercase biar gak sensitif huruf besar/kecil
     String tier = _userTier.toLowerCase();
     bool canCreate = tier == 'blue' || tier == 'gold' || tier == 'verified' || tier == 'vendor';
 
@@ -128,20 +144,15 @@ class _CommunityPageState extends State<CommunityPage> {
 
           if (canCreate) _buildCreateButton("Create new community", isCommunity: true),
 
+          SizedBox(height: 50.h),
+
+          // 🔥 LOGIC TAMPILAN: LIST VS EMPTY STATE
           Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.layers_outlined, size: 250.sp, color: Colors.grey.shade400),
-                SizedBox(height: 40.h),
-                Text(
-                  "you haven't created any\ncommunity yet",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 40.sp, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
-                ),
-                SizedBox(height: 200.h),
-              ],
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _communities.isEmpty
+                ? _buildEmptyState("you haven't created any\ncommunity yet", Icons.layers_outlined)
+                : _buildCommunityList(), // TAMPILKAN LIST JIKA ADA DATA
           ),
         ],
       ),
@@ -150,7 +161,6 @@ class _CommunityPageState extends State<CommunityPage> {
 
   // --- TAB 2: EVENT ---
   Widget _buildEventTab() {
-    // 🔥 FIX LOGIC: Hanya 'gold' (Vendor) yang bisa bikin Event
     String tier = _userTier.toLowerCase();
     bool canCreate = tier == 'gold' || tier == 'vendor';
 
@@ -159,34 +169,107 @@ class _CommunityPageState extends State<CommunityPage> {
       child: Column(
         children: [
           SizedBox(height: 50.h),
-
           if (canCreate) _buildCreateButton("Create new event", isCommunity: false),
 
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.filter_vintage_outlined, size: 250.sp, color: Colors.grey.shade400),
-                SizedBox(height: 40.h),
-                Text(
-                  "you haven't created any\nevent yet",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 40.sp, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
-                ),
-                SizedBox(height: 200.h),
-              ],
-            ),
-          ),
+          // Event masih dummy empty state dulu
+          Expanded(child: _buildEmptyState("you haven't created any\nevent yet", Icons.filter_vintage_outlined)),
         ],
       ),
     );
   }
 
+  // 🔥 WIDGET LIST COMMUNITY (UI SEMENTARA)
+  Widget _buildCommunityList() {
+    return ListView.separated(
+      itemCount: _communities.length,
+      separatorBuilder: (_, __) => SizedBox(height: 30.h),
+      itemBuilder: (context, index) {
+        final comm = _communities[index];
+        return GestureDetector(
+          onTap: () {
+            // 🔥 NAVIGASI KE PROFILE COMMUNITY REAL
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CommunityProfilePage(communityId: comm['id'], currentUserId: widget.userId),
+              ),
+            );
+          },
+          child: Container(
+            padding: EdgeInsets.all(30.w),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(40.r),
+              border: Border.all(color: Colors.grey.shade200),
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5))],
+            ),
+            child: Row(
+              children: [
+                // ICON KOMUNITAS
+                CircleAvatar(
+                  radius: 60.r,
+                  backgroundColor: Colors.grey.shade200,
+                  backgroundImage: (comm['icon_url'] != null && comm['icon_url'] != "")
+                      ? CachedNetworkImageProvider(comm['icon_url'])
+                      : null,
+                  child: (comm['icon_url'] == null || comm['icon_url'] == "")
+                      ? Icon(Icons.groups, color: Colors.grey)
+                      : null,
+                ),
+                SizedBox(width: 30.w),
+
+                // NAMA KOMUNITAS
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        comm['name'] ?? "No Name",
+                        style: TextStyle(fontSize: 40.sp, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        "${comm['member_count'] ?? 0} Members",
+                        style: TextStyle(fontSize: 30.sp, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, size: 50.sp, color: Colors.grey),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // WIDGET EMPTY STATE
+  Widget _buildEmptyState(String text, IconData icon) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 250.sp, color: Colors.grey.shade400),
+        SizedBox(height: 40.h),
+        Text(
+          text,
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 40.sp, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+        ),
+        SizedBox(height: 200.h),
+      ],
+    );
+  }
+
   Widget _buildCreateButton(String text, {required bool isCommunity}) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         if (isCommunity) {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => AddCommunityPage(userId: widget.userId)));
+          // 🔥 Refresh list setelah balik dari create page
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AddCommunityPage(userId: widget.userId)),
+          );
+          _fetchCommunities();
         } else {
           ScaffoldMessenger.of(
             context,

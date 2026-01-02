@@ -228,9 +228,9 @@ class _CommentSheetState extends State<CommentSheet> {
                           children: [
                             Text(
                               "No comments yet",
-                              style: TextStyle(fontSize: 45.sp, fontWeight: FontWeight.bold),
+                              style: TextStyle(fontSize: 45.sp, fontWeight: FontWeight.w600),
                             ),
-                            SizedBox(height: 15.h),
+                            SizedBox(height: 0.h),
                             Text(
                               "Be the first to comment.",
                               style: TextStyle(fontSize: 35.sp, color: Colors.grey),

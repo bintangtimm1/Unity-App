@@ -78,7 +78,7 @@ class _NotificationPageState extends State<NotificationPage> {
         ),
         title: Text(
           "Notifications",
-          style: TextStyle(color: Colors.black, fontSize: 40.sp, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.black, fontSize: 40.sp, fontWeight: FontWeight.w600),
         ),
       ),
       body: _isLoading

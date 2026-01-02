@@ -34,14 +34,22 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'Sosmed App',
-          theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple), useMaterial3: true),
+
+          // 🔥 SETTING FONT GLOBAL SF PRO DISINI
+          theme: ThemeData(
+            fontFamily: 'SFPro', // Harus sama persis dengan yang di pubspec.yaml
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+            useMaterial3: true,
+          ),
+
           // Login Page
           //home: const LoginPage(),
 
           // Main Page user
           //home: const MainScreen(username: "Centaury (Dev)", userId: 1),
-          home: const MainScreen(username: "Photoshop (Dev)", userId: 3),
-          //home: const MainScreen(username: "Illustrator (Dev)", userId: 5),
+          //home: const MainScreen(username: "bintang_timur (Dev)", userId: 2),
+          //home: const MainScreen(username: "Photoshop (Dev)", userId: 3),
+          home: const MainScreen(username: "Illustrator (Dev)", userId: 5),
 
           //Profile Page
           //home: ProfilePage(userId: 1),

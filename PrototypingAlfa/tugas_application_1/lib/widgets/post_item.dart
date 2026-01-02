@@ -16,8 +16,6 @@ class PostItem extends StatefulWidget {
   final Function(bool isLiked, int newCount)? onLikeChanged;
   final Function(bool isSaved)? onSaveChanged;
   final VoidCallback? onNavigateToProfileTab;
-
-  // 🔥 FITUR BARU: CALLBACK TOMBOL KOMENTAR
   final VoidCallback? onCommentTap;
 
   const PostItem({
@@ -27,7 +25,7 @@ class PostItem extends StatefulWidget {
     this.onLikeChanged,
     this.onSaveChanged,
     this.onNavigateToProfileTab,
-    this.onCommentTap, // 🔥 Tambahkan di constructor
+    this.onCommentTap,
   });
 
   @override
@@ -135,6 +133,49 @@ class _PostItemState extends State<PostItem> {
     );
   }
 
+  // 🔥 FUNGSI FORMAT WAKTU ALA SOCMED
+  String _formatTimeAgo(String? dateString) {
+    if (dateString == null || dateString.isEmpty) return "";
+
+    try {
+      DateTime created = DateTime.parse(dateString);
+      DateTime now = DateTime.now();
+      Duration diff = now.difference(created);
+
+      if (diff.inMinutes < 5) {
+        return "just now";
+      } else if (diff.inMinutes < 60) {
+        return "${diff.inMinutes} minute ago";
+      } else if (diff.inHours < 24) {
+        return "${diff.inHours} hours ago";
+      } else if (diff.inDays < 30) {
+        return "${diff.inDays} day ago";
+      } else if (diff.inDays < 365) {
+        int months = (diff.inDays / 30).floor();
+        return "${months} month ago";
+      } else {
+        // Format: Month Year (Manual biar gak perlu package intl)
+        List<String> months = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+        return "${months[created.month - 1]} ${created.year}";
+      }
+    } catch (e) {
+      return dateString; // Fallback kalau error parsing
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isDeleted) return const SizedBox.shrink();
@@ -197,7 +238,7 @@ class _PostItemState extends State<PostItem> {
                           Flexible(
                             child: Text(
                               safeUsername,
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 45.sp),
+                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 45.sp),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -205,7 +246,8 @@ class _PostItemState extends State<PostItem> {
                           VerificationBadge(tier: widget.post['tier'] ?? 'regular', size: 35.sp),
                         ],
                       ),
-                      if (widget.post['location_name'] != null)
+                      // LOKASI DI BAWAH USERNAME
+                      if (widget.post['location_name'] != null && widget.post['location_name'] != "")
                         Text(
                           widget.post['location_name'],
                           style: TextStyle(fontSize: 32.sp, color: Colors.black54),
@@ -259,15 +301,11 @@ class _PostItemState extends State<PostItem> {
                 ),
               ),
               SizedBox(width: 24.w),
-
-              // 🔥 MODIFIKASI TOMBOL KOMENTAR 🔥
               GestureDetector(
                 onTap: () {
-                  // Kalau ada instruksi khusus (misal dari Detail Page), pakai itu.
                   if (widget.onCommentTap != null) {
                     widget.onCommentTap!();
                   } else {
-                    // Kalau gak ada (di Home Page), buka Sheet biasa.
                     showModalBottomSheet(
                       context: context,
                       isScrollControlled: true,
@@ -301,7 +339,7 @@ class _PostItemState extends State<PostItem> {
               SizedBox(height: 8.h),
               RichText(
                 text: TextSpan(
-                  style: TextStyle(color: Colors.black, fontSize: 32.sp),
+                  style: TextStyle(color: Colors.black, fontSize: 35.sp),
                   children: [
                     TextSpan(
                       text: "$safeUsername ",
@@ -312,10 +350,13 @@ class _PostItemState extends State<PostItem> {
                 ),
               ),
               SizedBox(height: 8.h),
+
+              // 🔥 IMPLEMENTASI TIME AGO FORMATTER
               Text(
-                widget.post['created_at'] ?? "",
-                style: TextStyle(fontSize: 25.sp, color: Colors.grey),
+                _formatTimeAgo(widget.post['created_at']), // PANGGIL FUNGSI DI SINI
+                style: TextStyle(fontSize: 25.sp, color: const Color.fromARGB(255, 116, 116, 116)),
               ),
+
               SizedBox(height: 24.h),
             ],
           ),

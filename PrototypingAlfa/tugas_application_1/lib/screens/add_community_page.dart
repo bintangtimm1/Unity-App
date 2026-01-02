@@ -1,7 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart'; // 🔥 1. IMPORT CROPPER
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'location_search_page.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../config.dart';
+import 'community_profile_page.dart'; // Import halaman profil baru
 
 class AddCommunityPage extends StatefulWidget {
   final int userId;
@@ -13,49 +19,141 @@ class AddCommunityPage extends StatefulWidget {
 
 class _AddCommunityPageState extends State<AddCommunityPage> {
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _subtitleController = TextEditingController(); // 🔥 2. CONTROLLER SUBTITLE
   final TextEditingController _descController = TextEditingController();
 
-  File? _iconFile; // Mirip Avatar
-  File? _headerFile; // Mirip Header
+  File? _iconFile;
+  File? _headerFile;
   final ImagePicker _picker = ImagePicker();
 
-  // Dummy Loading
+  String? _selectedLocation;
   bool _isCreating = false;
 
   @override
   void dispose() {
     _nameController.dispose();
+    _subtitleController.dispose();
     _descController.dispose();
     super.dispose();
   }
 
+  // 🔥 3. FUNGSI CROPPER (REUSABLE)
+  Future<File?> _cropImage({required File imageFile, required CropAspectRatioPreset preset}) async {
+    CroppedFile? croppedFile = await ImageCropper().cropImage(
+      sourcePath: imageFile.path,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Position & Crop',
+          toolbarColor: Colors.white,
+          toolbarWidgetColor: Colors.black,
+          initAspectRatio: preset,
+          lockAspectRatio: true, // KUNCI RASIO
+          hideBottomControls: false,
+        ),
+        IOSUiSettings(title: 'Position & Crop', aspectRatioLockEnabled: true),
+      ],
+    );
+
+    if (croppedFile != null) {
+      return File(croppedFile.path);
+    }
+    return null;
+  }
+
+  // 🔥 4. PICK ICON (CROP SQUARE 1:1)
   Future<void> _pickIcon() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) setState(() => _iconFile = File(image.path));
+    if (image != null) {
+      File? cropped = await _cropImage(
+        imageFile: File(image.path),
+        preset: CropAspectRatioPreset.square, // Preset Persegi
+      );
+      if (cropped != null) setState(() => _iconFile = cropped);
+    }
   }
 
+  // 🔥 5. PICK HEADER (CROP 16:9)
   Future<void> _pickHeader() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) setState(() => _headerFile = File(image.path));
+    if (image != null) {
+      File? cropped = await _cropImage(
+        imageFile: File(image.path),
+        preset: CropAspectRatioPreset.ratio16x9, // Preset Persegi Panjang
+      );
+      if (cropped != null) setState(() => _headerFile = cropped);
+    }
   }
 
-  // 🔥 FUNGSI CREATE DUMMY
-  void _createCommunity() {
-    print("=== DUMMY CREATE COMMUNITY ===");
-    print("User ID: ${widget.userId}");
-    print("Name: ${_nameController.text}");
-    print("Desc: ${_descController.text}");
-    print("Header: ${_headerFile?.path ?? 'None'}");
-    print("Icon: ${_iconFile?.path ?? 'None'}");
+  void _openLocationSearch() async {
+    final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const LocationSearchPage()));
 
-    // Simulasi Loading
+    if (result != null && result is String) {
+      setState(() {
+        _selectedLocation = result;
+      });
+    }
+  }
+
+  // 🔥 FUNGSI CREATE COMMUNITY (SUDAH AKTIF & KONEK API)
+  Future<void> _createCommunity() async {
+    if (_nameController.text.isEmpty || _selectedLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Name and Location are required!")));
+      return;
+    }
+
     setState(() => _isCreating = true);
-    Future.delayed(const Duration(seconds: 2), () {
-      setState(() => _isCreating = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Create Community Button Pressed (Backend Not Connected Yet)")));
-    });
+
+    try {
+      var uri = Uri.parse("${Config.baseUrl}/create_community");
+      var request = http.MultipartRequest("POST", uri);
+
+      // 1. Kirim Data Teks
+      request.fields['user_id'] = widget.userId.toString();
+      request.fields['name'] = _nameController.text;
+      request.fields['subtitle'] = _subtitleController.text; // Subtitle
+      request.fields['description'] = _descController.text;
+      request.fields['location'] = _selectedLocation!;
+
+      // 2. Kirim File Gambar (Jika ada)
+      if (_iconFile != null) {
+        var icon = await http.MultipartFile.fromPath("icon", _iconFile!.path);
+        request.files.add(icon);
+      }
+      if (_headerFile != null) {
+        var header = await http.MultipartFile.fromPath("header", _headerFile!.path);
+        request.files.add(header);
+      }
+
+      // 3. Eksekusi
+      var response = await request.send();
+      var responseData = await response.stream.bytesToString();
+      var jsonResponse = jsonDecode(responseData);
+
+      if (response.statusCode == 201) {
+        int newCommunityId = jsonResponse['id']; // Ambil ID komunitas baru
+
+        if (mounted) {
+          // Sukses! Pindah ke Halaman Profil Komunitas Baru
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CommunityProfilePage(communityId: newCommunityId, currentUserId: widget.userId),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Gagal: ${jsonResponse['message']}")));
+        }
+      }
+    } catch (e) {
+      print("Error create community: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
+    } finally {
+      if (mounted) setState(() => _isCreating = false);
+    }
   }
 
   @override
@@ -65,7 +163,6 @@ class _AddCommunityPageState extends State<AddCommunityPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      // --- APP BAR CUSTOM ---
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -75,20 +172,20 @@ class _AddCommunityPageState extends State<AddCommunityPage> {
           child: Text(
             "Back",
             style: TextStyle(
-              color: const Color.fromARGB(255, 255, 0, 55), // Warna Merah sesuai request
+              color: const Color.fromARGB(255, 255, 0, 55),
               fontSize: 34.sp,
               fontWeight: FontWeight.bold,
             ),
           ),
         ),
         title: Text(
-          "Create", // Judul Header
+          "Create",
           style: TextStyle(color: Colors.black, fontSize: 40.sp, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: _isCreating ? null : _createCommunity, // Panggil fungsi dummy
+            onPressed: _isCreating ? null : _createCommunity,
             child: _isCreating
                 ? SizedBox(width: 34.w, height: 34.w, child: const CircularProgressIndicator(strokeWidth: 2))
                 : Text(
@@ -105,7 +202,7 @@ class _AddCommunityPageState extends State<AddCommunityPage> {
           children: [
             SizedBox(height: 20.h),
 
-            // --- AREA GAMBAR (HEADER & ICON) ---
+            // --- HEADER & ICON ---
             Center(
               child: SizedBox(
                 width: headerWidth,
@@ -113,7 +210,7 @@ class _AddCommunityPageState extends State<AddCommunityPage> {
                   clipBehavior: Clip.none,
                   alignment: Alignment.bottomLeft,
                   children: [
-                    // 1. HEADER IMAGE (16:9)
+                    // HEADER IMAGE
                     GestureDetector(
                       onTap: _pickHeader,
                       child: AspectRatio(
@@ -139,7 +236,7 @@ class _AddCommunityPageState extends State<AddCommunityPage> {
                       ),
                     ),
 
-                    // 2. ICON COMMUNITY (OVERLAP)
+                    // ICON IMAGE
                     Positioned(
                       left: 0,
                       right: 0,
@@ -186,14 +283,22 @@ class _AddCommunityPageState extends State<AddCommunityPage> {
               ),
             ),
 
-            SizedBox(height: 180.h), // Jarak kompensasi overlap
+            SizedBox(height: 180.h),
+
             // --- FORM FIELDS ---
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 50.w),
               child: Column(
                 children: [
                   _buildRowInput("Name", _nameController),
+
+                  // 🔥 6. SUBTITLE BARU
+                  _buildRowInput("Sub", _subtitleController),
+
                   _buildRowInput("Description", _descController, maxLines: 4),
+
+                  _buildLocationInput(),
+
                   SizedBox(height: 100.h),
                 ],
               ),
@@ -204,16 +309,15 @@ class _AddCommunityPageState extends State<AddCommunityPage> {
     );
   }
 
-  // 🔥 WIDGET INPUT ROW (Label Kiri, Input Kanan + Garis Bawah)
+  // WIDGET INPUT TEXT
   Widget _buildRowInput(String label, TextEditingController controller, {int? maxLines = 1}) {
     return Container(
       padding: EdgeInsets.symmetric(vertical: 30.h),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // LABEL
           SizedBox(
-            width: 300.w, // Sedikit lebih lebar buat "Description"
+            width: 300.w,
             child: Padding(
               padding: EdgeInsets.only(top: 15.h),
               child: Text(
@@ -226,8 +330,6 @@ class _AddCommunityPageState extends State<AddCommunityPage> {
               ),
             ),
           ),
-
-          // INPUT FIELD
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -251,6 +353,62 @@ class _AddCommunityPageState extends State<AddCommunityPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // WIDGET INPUT LOKASI
+  Widget _buildLocationInput() {
+    bool hasValue = _selectedLocation != null && _selectedLocation!.isNotEmpty;
+
+    return GestureDetector(
+      onTap: _openLocationSearch,
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 30.h),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 300.w,
+              child: Padding(
+                padding: EdgeInsets.only(top: 15.h),
+                child: Text(
+                  "Location",
+                  style: TextStyle(
+                    fontSize: 40.sp,
+                    fontWeight: FontWeight.bold,
+                    color: const Color.fromARGB(255, 116, 116, 116),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade300, width: 3.h),
+                  ),
+                ),
+                padding: EdgeInsets.only(bottom: 15.h, top: 10.h),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        hasValue ? _selectedLocation! : "Select Location",
+                        style: TextStyle(
+                          fontSize: 40.sp,
+                          color: hasValue ? Colors.black : Colors.grey.shade400,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 40.sp),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

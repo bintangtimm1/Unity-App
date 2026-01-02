@@ -259,12 +259,12 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                         Flexible(
                                           child: Text(
                                             username,
-                                            style: TextStyle(fontSize: 70.sp, fontWeight: FontWeight.w900),
+                                            style: TextStyle(fontSize: 70.sp, fontWeight: FontWeight.w600),
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                         SizedBox(width: 10.w),
-                                        VerificationBadge(tier: _userProfile!['tier'] ?? 'regular', size: 50.sp),
+                                        VerificationBadge(tier: _userProfile!['tier'] ?? 'regular', size: 60.sp),
                                       ],
                                     ),
                                     // BIO
@@ -337,22 +337,13 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                               right: 80.w,
                               child: ElevatedButton.icon(
                                 onPressed: () {
-                                  // 1. SIAPKAN DATA (KAWIN SILANG DATA)
-                                  // Kita ambil data dari API (_userProfile), tapi kita SUNTIKKAN 'id' dari widget.userId
-                                  // karena EditProfilePage butuh 'id' buat request ke backend.
                                   final Map<String, dynamic> dataToSend = Map.from(_userProfile!);
                                   dataToSend['id'] = widget.userId;
-
-                                  // 2. NAVIGASI DENGAN FORMAT BARU
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => EditProfilePage(
-                                        // Kirim paket data lengkap (+ ID yang udah disuntik)
-                                        userProfile: dataToSend,
-                                        // Kirim fungsi refresh biar pas balik data otomatis update
-                                        onProfileUpdated: _fetchProfileData,
-                                      ),
+                                      builder: (context) =>
+                                          EditProfilePage(userProfile: dataToSend, onProfileUpdated: _fetchProfileData),
                                     ),
                                   );
                                 },
@@ -465,7 +456,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           ),
 
           // LAYER 3: TOP BAR
-          // LAYER 3: TOP BAR (STICKY HEADER)
           Positioned(
             top: 150.h,
             left: 50.w,
@@ -494,7 +484,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     // 2. USERNAME
                     Text(
                       username,
-                      style: TextStyle(fontSize: 50.sp, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(fontSize: 50.sp, fontWeight: FontWeight.w600, color: Colors.white),
                     ),
 
                     SizedBox(width: 15.w),

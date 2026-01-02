@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart'; // 🔥 1. IMPORT INI
 import 'package:http/http.dart' as http;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -40,14 +41,57 @@ class _EditProfilePageState extends State<EditProfilePage> {
     super.dispose();
   }
 
-  Future<void> _pickAvatar() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) setState(() => _avatarFile = File(image.path));
+  // 🔥 FUNGSI CROPPER UMUM
+  Future<File?> _cropImage({required File imageFile, required CropAspectRatioPreset preset}) async {
+    CroppedFile? croppedFile = await ImageCropper().cropImage(
+      sourcePath: imageFile.path,
+      // Konfigurasi tampilan Cropper biar mirip tema aplikasi (Putih/Hitam)
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Position & Crop',
+          toolbarColor: Colors.white,
+          toolbarWidgetColor: Colors.black,
+          initAspectRatio: preset,
+          lockAspectRatio: true, // KUNCI RASIO BIAR GAK PENYOK
+          hideBottomControls: false,
+        ),
+        IOSUiSettings(
+          title: 'Position & Crop',
+          aspectRatioLockEnabled: true, // KUNCI RASIO IOS
+        ),
+      ],
+    );
+
+    if (croppedFile != null) {
+      return File(croppedFile.path);
+    }
+    return null; // Kalau user cancel crop
   }
 
+  // 🔥 PICK AVATAR (RATIO 1:1)
+  Future<void> _pickAvatar() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      // Lempar ke Cropper dengan Preset SQUARE (Persegi)
+      File? cropped = await _cropImage(imageFile: File(image.path), preset: CropAspectRatioPreset.square);
+
+      if (cropped != null) {
+        setState(() => _avatarFile = cropped);
+      }
+    }
+  }
+
+  // 🔥 PICK HEADER (RATIO 16:9)
   Future<void> _pickHeader() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) setState(() => _headerFile = File(image.path));
+    if (image != null) {
+      // Lempar ke Cropper dengan Preset 16:9
+      File? cropped = await _cropImage(imageFile: File(image.path), preset: CropAspectRatioPreset.ratio16x9);
+
+      if (cropped != null) {
+        setState(() => _headerFile = cropped);
+      }
+    }
   }
 
   Future<void> _saveProfile() async {
@@ -61,7 +105,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
       request.fields['user_id'] = widget.userProfile['id'].toString();
       request.fields['username'] = _usernameController.text;
       request.fields['bio'] = _bioController.text;
-      // Website dihapus dulu sesuai request
 
       if (_avatarFile != null) {
         var pic = await http.MultipartFile.fromPath("avatar", _avatarFile!.path);
@@ -91,13 +134,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Widget build(BuildContext context) {
     String initialHeaderUrl = widget.userProfile['header_url'] ?? "";
     String initialAvatarUrl = widget.userProfile['avatar_url'] ?? "";
-    // Lebar header adalah 90% dari lebar layar (biar ada sisa putih di kiri kanan)
     double headerWidth = 0.9.sw;
     double avatarRadius = 120.r;
 
     return Scaffold(
       backgroundColor: Colors.white,
-      // --- APP BAR SESUAI DESAIN ---
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -108,8 +149,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
             "Back",
             style: TextStyle(
               color: const Color.fromARGB(255, 255, 0, 55),
-              fontSize: 34.sp,
-              fontWeight: FontWeight.bold,
+              fontSize: 32.sp,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -125,7 +166,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ? SizedBox(width: 34.w, height: 34.w, child: const CircularProgressIndicator(strokeWidth: 2))
                 : Text(
                     "Save",
-                    style: TextStyle(color: Colors.blue, fontSize: 34.sp, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: Colors.blue, fontSize: 32.sp, fontWeight: FontWeight.bold),
                   ),
           ),
           SizedBox(width: 20.w),
@@ -134,23 +175,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(height: 20.h), // Jarak sedikit dari AppBar
+            SizedBox(height: 20.h),
             // --- AREA HEADER & AVATAR ---
             Center(
               child: SizedBox(
-                width: headerWidth, // Batasi lebar agar ada margin kiri kanan
-                // Tinggi menyesuaikan konten Stack (Header + Avatar yang menonjol ke bawah)
+                width: headerWidth,
                 child: Stack(
-                  clipBehavior: Clip.none, // Biarkan avatar menonjol keluar batas Stack
+                  clipBehavior: Clip.none,
                   alignment: Alignment.bottomLeft,
                   children: [
-                    // 1. HEADER IMAGE (16:9, Rounded Corner)
+                    // 1. HEADER IMAGE
                     GestureDetector(
                       onTap: _pickHeader,
                       child: AspectRatio(
-                        aspectRatio: 16 / 9, // Rasio 16:9
+                        aspectRatio: 16 / 9,
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(80.r), // Sudut membulat
+                          borderRadius: BorderRadius.circular(80.r),
                           child: Container(
                             color: Colors.grey.shade200,
                             child: _headerFile != null
@@ -170,9 +210,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         child: Stack(
                           alignment: Alignment.bottomRight,
                           children: [
-                            // 🔥 1. AVATAR UTAMA (INI YANG DI-KLIK)
+                            // 2. AVATAR UTAMA
                             GestureDetector(
-                              onTap: _pickAvatar, // <--- AKSI KLIK PINDAH KE SINI
+                              onTap: _pickAvatar,
                               child: Container(
                                 padding: EdgeInsets.all(20.r),
                                 decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
@@ -191,22 +231,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 ),
                               ),
                             ),
-
-                            // 🔥 2. ICON KAMERA (CUMA HIASAN / DEKORASI)
-                            // GestureDetector-nya sudah dicopot
-                            IgnorePointer(
-                              // Tambahan biar klik tembus ke avatar kalau gak sengaja kena ikon
-                              child: Container(
-                                padding: EdgeInsets.all(12.w),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.grey.shade200, width: 1),
-                                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, spreadRadius: 1)],
-                                ),
-                                child: Icon(Icons.camera_alt, size: 40.sp, color: Colors.black),
-                              ),
-                            ),
                           ],
                         ),
                       ),
@@ -216,8 +240,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
             ),
 
-            // Jarak kompensasi karena avatar menonjol ke bawah sebanyak 40.h
-            SizedBox(height: 180.h), // Jarak dari avatar ke form
+            SizedBox(height: 180.h),
+
             // JUDUL SECTION
             Center(
               child: Column(
@@ -234,17 +258,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
             SizedBox(height: 50.h),
 
-            // --- FORM FIELDS (MODEL LIST) ---
+            // --- FORM FIELDS ---
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 50.w),
               child: Column(
                 children: [
-                  // USERNAME ROW
                   _buildRowInput("Username", _usernameController),
-
-                  // BIO ROW (Multiline)
-                  _buildRowInput("Bio", _bioController, maxLines: null), // null = auto expand
-
+                  _buildRowInput("Bio", _bioController, maxLines: null),
                   SizedBox(height: 100.h),
                 ],
               ),
@@ -275,11 +295,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
             ),
           ),
-
-          // 2. INPUT FIELD (KANAN) - INI YANG PAKAI GARIS
           Expanded(
             child: Container(
-              // 🔥 GARIS PINDAH KE SINI (Cuma di bawah input)
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(color: Colors.grey.shade300, width: 3.h),
@@ -287,18 +304,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
               child: TextField(
                 controller: controller,
-                maxLines: maxLines, // null = auto expand ke bawah
-                minLines: 1, // Minimal 1 baris
+                maxLines: maxLines,
+                minLines: 1,
                 style: TextStyle(
                   fontSize: 40.sp,
                   color: const Color.fromARGB(255, 0, 0, 0),
                   fontWeight: FontWeight.w500,
-                  height: 1.5, // Spasi antar baris biar garisnya gak mepet banget
+                  height: 1.5,
                 ),
                 decoration: InputDecoration(
                   isDense: true,
-                  contentPadding: EdgeInsets.only(bottom: 15.h, top: 10.h), // Jarak teks ke garis bawah
-                  border: InputBorder.none, // Hapus border bawaan TextField
+                  contentPadding: EdgeInsets.only(bottom: 15.h, top: 10.h),
+                  border: InputBorder.none,
                   hintText: "Enter $label",
                   hintStyle: TextStyle(color: Colors.grey.shade400),
                 ),
