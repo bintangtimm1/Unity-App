@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // 1. WAJIB IMPORT INI
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'screens/login_page.dart';
 import 'screens/main_screen.dart';
@@ -35,9 +35,8 @@ class MyApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           title: 'Sosmed App',
 
-          // 🔥 SETTING FONT GLOBAL SF PRO DISINI
           theme: ThemeData(
-            fontFamily: 'SFPro', // Harus sama persis dengan yang di pubspec.yaml
+            fontFamily: 'SFPro',
             colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
             useMaterial3: true,
           ),
@@ -74,7 +73,7 @@ class DevLauncherPage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
-              "👑 PROJECT LAUNCHER",
+              "PROJECT LAUNCHER",
               style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 50),
