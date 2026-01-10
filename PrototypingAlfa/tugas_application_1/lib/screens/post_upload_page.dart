@@ -8,6 +8,7 @@ import 'tag_search_page.dart';
 import 'location_search_page.dart'; // 🔥 1. IMPORT SEARCH PAGE
 import '../config.dart';
 import 'main_screen.dart';
+import 'community_selection_page.dart';
 
 class PostUploadPage extends StatefulWidget {
   final File imageFile;
@@ -23,7 +24,8 @@ class PostUploadPage extends StatefulWidget {
 class _PostUploadPageState extends State<PostUploadPage> {
   String _captionText = "";
   List<UserStub> _taggedUsers = [];
-  String? _selectedLocation; // 🔥 2. VARIABEL LOKASI
+  String? _selectedLocation;
+  Map<String, dynamic>? _selectedCommunity;
   bool _isUploading = false;
 
   // --- FUNGSI UPLOAD ---
@@ -37,12 +39,16 @@ class _PostUploadPageState extends State<PostUploadPage> {
 
       request.fields['user_id'] = widget.userId.toString();
       request.fields['caption'] = _captionText;
-
-      // 🔥 3. KIRIM LOKASI ASLI (KALAU KOSONG KIRIM STRING KOSONG)
       request.fields['location'] = _selectedLocation ?? "";
-
       request.fields['is_square'] = widget.isSquareMode.toString();
       request.fields['tagged_users'] = jsonEncode(_taggedUsers.map((u) => u.id).toList());
+
+      // 🔥 KIRIM COMMUNITY ID (Kalau ada yang dipilih)
+      if (_selectedCommunity != null) {
+        request.fields['community_id'] = _selectedCommunity!['id'].toString();
+      } else {
+        request.fields['community_id'] = ""; // Kirim string kosong biar backend tau
+      }
 
       var pic = await http.MultipartFile.fromPath("image", widget.imageFile.path);
       request.files.add(pic);
@@ -83,6 +89,28 @@ class _PostUploadPageState extends State<PostUploadPage> {
       MaterialPageRoute(builder: (context) => TagSearchPage(alreadyTagged: _taggedUsers)),
     );
     if (result != null && result is List<UserStub>) setState(() => _taggedUsers = result);
+  }
+
+  void _openCommunitySelection() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CommunitySelectionPage(
+          userId: widget.userId,
+          selectedCommunityId: _selectedCommunity?['id'], // Kirim ID lama biar kecentang
+        ),
+      ),
+    );
+
+    // 🔥 LOGIKA BARU ANTI-BUG:
+    // Kita cek apakah ada kunci 'confirm'.
+    if (result != null && result is Map && result['confirm'] == true) {
+      setState(() {
+        // Update data (bisa jadi NULL kalau di-uncheck, dan itu BENAR)
+        _selectedCommunity = result['data'];
+      });
+    }
+    // Kalau result null (User tekan Back), kita diamkan saja (gak ngerubah apa-apa).
   }
 
   // 🔥 4. FUNGSI BUKA SEARCH LOCATION
@@ -199,6 +227,14 @@ class _PostUploadPageState extends State<PostUploadPage> {
                     _buildMenuItem("Tag People", Icons.person_outline, onTap: _openTagSearch),
 
                     // 🔥 MENU LOCATION SUDAH INTERAKTIF
+                    _buildMenuItem(
+                      _selectedCommunity != null
+                          ? _selectedCommunity!['name']
+                          : "Tag Community", // Kalau dipilih, ganti teks jadi nama community
+                      Icons.groups_outlined, // Icon Community
+                      onTap: _openCommunitySelection,
+                      isActive: _selectedCommunity != null, // Warna biru kalau aktif
+                    ),
                     _buildMenuItem(
                       _selectedLocation ?? "Add Location", // Tampilkan kota kalau sudah dipilih
                       Icons.location_on_outlined,

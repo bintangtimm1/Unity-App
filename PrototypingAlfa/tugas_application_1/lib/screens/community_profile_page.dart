@@ -6,7 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../config.dart';
 import '../widgets/verification_badge.dart';
-import 'menu_community.dart'; // 🔥 Jangan lupa import ini King
+import 'menu_community.dart';
+import '../screens/notification_detail_post_page.dart'; // 🔥 Jangan lupa import ini King
 
 class CommunityProfilePage extends StatefulWidget {
   final int communityId;
@@ -30,6 +31,7 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
   // 🔥 STATE JOIN (BARU)
   bool _isJoined = false;
   bool _isJoinLoading = false;
+  List _taggedPosts = []; // 🔥 Tambahkan ini
 
   @override
   void initState() {
@@ -51,6 +53,20 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
   Future<void> _fetchData() async {
     await _fetchCommunityData();
     await _fetchMessages();
+    await _fetchTaggedPosts(); // 🔥 Panggil ini
+  }
+
+  Future<void> _fetchTaggedPosts() async {
+    try {
+      final response = await http.get(
+        Uri.parse("${Config.baseUrl}/get_community_tagged_posts?community_id=${widget.communityId}"),
+      );
+      if (response.statusCode == 200) {
+        if (mounted) setState(() => _taggedPosts = jsonDecode(response.body));
+      }
+    } catch (e) {
+      print("Error fetching tagged posts: $e");
+    }
   }
 
   Future<void> _fetchCommunityData() async {
@@ -496,18 +512,57 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
   }
 
   Widget _buildTaggedTab() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.image_not_supported_outlined, size: 200.sp, color: Colors.grey.shade300),
-          SizedBox(height: 30.h),
-          Text(
-            "This community has no post tags yet",
-            style: TextStyle(fontSize: 36.sp, color: Colors.grey.shade500, fontWeight: FontWeight.bold),
-          ),
-        ],
+    if (_taggedPosts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.image_not_supported_outlined, size: 200.sp, color: Colors.grey.shade300),
+            SizedBox(height: 30.h),
+            Text(
+              "This community has no post tags yet",
+              style: TextStyle(fontSize: 36.sp, color: Colors.grey.shade500, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      padding: EdgeInsets.zero,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _taggedPosts.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 5.w,
+        mainAxisSpacing: 5.w,
+        childAspectRatio: 1.0,
       ),
+      itemBuilder: (context, index) {
+        final post = _taggedPosts[index];
+
+        return InkWell(
+          // 🔥 UBAH BAGIAN INI 🔥
+          onTap: () {
+            // Navigasi ke NotificationDetailPostPage (Single Post View)
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => NotificationDetailPostPage(
+                  postId: post['id'], // Kirim ID Postingan
+                  currentUserId: widget.currentUserId, // Kirim ID User yang login
+                ),
+              ),
+            );
+          },
+          child: CachedNetworkImage(
+            imageUrl: post['image_url'],
+            fit: BoxFit.cover,
+            placeholder: (_, __) => Container(color: Colors.grey.shade200),
+            errorWidget: (_, __, ___) => Container(color: Colors.grey.shade300, child: Icon(Icons.error)),
+          ),
+        );
+      },
     );
   }
 
