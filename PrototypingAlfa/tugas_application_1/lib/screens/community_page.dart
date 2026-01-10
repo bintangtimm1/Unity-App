@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:http/http.dart' as http;
-import 'package:cached_network_image/cached_network_image.dart'; // Jangan lupa import ini
+import 'package:cached_network_image/cached_network_image.dart'; 
 import '../config.dart';
 import 'add_community_page.dart';
-import 'community_profile_page.dart'; // 🔥 IMPORT HALAMAN PROFIL
+import 'community_profile_page.dart'; 
 
 class CommunityPage extends StatefulWidget {
   final int userId;
@@ -20,7 +20,6 @@ class _CommunityPageState extends State<CommunityPage> {
   int _currentIndex = 0;
   String _userTier = 'regular';
 
-  // 🔥 DATA KOMUNITAS
   List _communities = [];
   bool _isLoading = true;
 
@@ -28,7 +27,7 @@ class _CommunityPageState extends State<CommunityPage> {
   void initState() {
     super.initState();
     _fetchUserTier();
-    _fetchCommunities(); // 🔥 AMBIL DATA SAAT MASUK
+    _fetchCommunities(); 
   }
 
   // AMBIL DATA TIER
@@ -44,11 +43,9 @@ class _CommunityPageState extends State<CommunityPage> {
     }
   }
 
-  // 🔥 AMBIL DATA KOMUNITAS DARI SERVER
-  // 🔥 AMBIL DATA KOMUNITAS DARI SERVER
+
   Future<void> _fetchCommunities() async {
     try {
-      // 🔥 UPDATE: Kirim parameter user_id biar backend tau siapa yg minta
       final response = await http.get(Uri.parse("${Config.baseUrl}/get_communities?user_id=${widget.userId}"));
 
       if (response.statusCode == 200) {
@@ -146,7 +143,7 @@ class _CommunityPageState extends State<CommunityPage> {
 
           SizedBox(height: 50.h),
 
-          // 🔥 LOGIC TAMPILAN: LIST VS EMPTY STATE
+          // LOGIC TAMPILAN
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -178,7 +175,7 @@ class _CommunityPageState extends State<CommunityPage> {
     );
   }
 
-  // 🔥 WIDGET LIST COMMUNITY (UI SEMENTARA)
+  // WIDGET LIST COMMUNITY 
   Widget _buildCommunityList() {
     return ListView.separated(
       itemCount: _communities.length,
@@ -187,7 +184,7 @@ class _CommunityPageState extends State<CommunityPage> {
         final comm = _communities[index];
         return GestureDetector(
           onTap: () {
-            // 🔥 NAVIGASI KE PROFILE COMMUNITY REAL
+            // NAVIGASI KE PROFILE COMMUNITY
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -264,7 +261,7 @@ class _CommunityPageState extends State<CommunityPage> {
     return GestureDetector(
       onTap: () async {
         if (isCommunity) {
-          // 🔥 Refresh list setelah balik dari create page
+          // Refresh list 
           await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => AddCommunityPage(userId: widget.userId)),
