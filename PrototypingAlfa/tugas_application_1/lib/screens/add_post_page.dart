@@ -219,7 +219,6 @@ class _AddPostPageState extends State<AddPostPage> {
                                       width: 1.sw,
                                       child: Image.asset('assets/images/Header_gallery.png', fit: BoxFit.fitWidth),
                                     ),
-                                    // ... (Kode Dropdown Sort Sama Saja) ...
                                     Positioned(
                                       left: 93.w,
                                       top: 35.h,
@@ -291,7 +290,7 @@ class _AddPostPageState extends State<AddPostPage> {
                                 onTap: () {
                                   setState(() {
                                     _selectedEntity = asset;
-                                    _cropController.value = Matrix4.identity(); // Reset Zoom saat ganti foto
+                                    _cropController.value = Matrix4.identity(); 
                                   });
                                 },
                                 child: AssetEntityImage(
