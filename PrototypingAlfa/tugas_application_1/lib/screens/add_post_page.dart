@@ -121,11 +121,6 @@ class _AddPostPageState extends State<AddPostPage> {
         height: 1.sh,
         child: Stack(
           children: [
-            // ============================================================
-            // 🔥 LAYER 0 (BELAKANG): SI KEMBAR POLOS (GHOST WIDGET)
-            // Ini tidak terlihat user (ketutup Layer 1), tapi ini yang kita FOTO.
-            // Ukurannya DINAMIS (Square / Portrait) biar hasil crop akurat.
-            // ============================================================
             Positioned(
               left: 0,
               top: 0,
