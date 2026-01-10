@@ -2,12 +2,12 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart'; // Wajib buat RepaintBoundary
-import 'package:path_provider/path_provider.dart'; // Wajib ada di pubspec.yaml
+import 'package:flutter/rendering.dart'; 
+import 'package:path_provider/path_provider.dart'; 
 import 'package:photo_manager/photo_manager.dart';
 import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../widgets/post_crop_preview.dart'; // Pastikan ini pakai file yang sudah diperbaiki (Dynamic Canvas)
+import '../widgets/post_crop_preview.dart'; 
 import 'post_upload_page.dart';
 
 class AddPostPage extends StatefulWidget {
@@ -22,19 +22,17 @@ class _AddPostPageState extends State<AddPostPage> {
   // --- VARIABLES ---
   List<AssetEntity> _mediaList = [];
   AssetEntity? _selectedEntity;
-  bool _isCoverMode = true; // true = Square (1:1), false = Portrait (4:5)
+  bool _isCoverMode = true; 
   List<AssetPathEntity> _albumList = [];
   AssetPathEntity? _currentAlbum;
   bool _isNewestFirst = true;
   bool _isMenuOpen = false;
-  bool _isProcessing = false; // Loading state saat cropping
+  bool _isProcessing = false; 
 
   ScrollPhysics _pageScrollPhysics = const BouncingScrollPhysics();
 
-  // Controller ini dipakai BERSAMA oleh Layer Depan & Belakang
   final TransformationController _cropController = TransformationController();
 
-  // Key khusus untuk menangkap gambar di Layer Belakang
   final GlobalKey _cleanCropKey = GlobalKey();
 
   @override
@@ -70,7 +68,6 @@ class _AddPostPageState extends State<AddPostPage> {
     });
   }
 
-  // 🔥 FUNGSI UTAMA: JALANKAN CROP & PINDAH HALAMAN
   Future<void> _cropAndNavigate() async {
     if (_selectedEntity == null || _isProcessing) return;
     setState(() => _isProcessing = true);
@@ -98,7 +95,7 @@ class _AddPostPageState extends State<AddPostPage> {
           context,
           MaterialPageRoute(
             builder: (context) => PostUploadPage(
-              imageFile: imagePath, // Kita kirim File, bukan data mentah lagi
+              imageFile: imagePath, 
               isSquareMode: _isCoverMode,
               userId: widget.userId,
             ),
