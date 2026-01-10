@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image_cropper/image_cropper.dart'; // 🔥 1. IMPORT CROPPER
+import 'package:image_cropper/image_cropper.dart'; 
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'location_search_page.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config.dart';
-import 'community_profile_page.dart'; // Import halaman profil baru
+import 'community_profile_page.dart'; 
 
 class AddCommunityPage extends StatefulWidget {
   final int userId;
@@ -19,7 +19,7 @@ class AddCommunityPage extends StatefulWidget {
 
 class _AddCommunityPageState extends State<AddCommunityPage> {
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _subtitleController = TextEditingController(); // 🔥 2. CONTROLLER SUBTITLE
+  final TextEditingController _subtitleController = TextEditingController(); 
   final TextEditingController _descController = TextEditingController();
 
   File? _iconFile;
@@ -37,7 +37,7 @@ class _AddCommunityPageState extends State<AddCommunityPage> {
     super.dispose();
   }
 
-  // 🔥 3. FUNGSI CROPPER (REUSABLE)
+  // FUNGSI CROPPER
   Future<File?> _cropImage({required File imageFile, required CropAspectRatioPreset preset}) async {
     CroppedFile? croppedFile = await ImageCropper().cropImage(
       sourcePath: imageFile.path,
@@ -60,7 +60,7 @@ class _AddCommunityPageState extends State<AddCommunityPage> {
     return null;
   }
 
-  // 🔥 4. PICK ICON (CROP SQUARE 1:1)
+  // PICK ICON
   Future<void> _pickIcon() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
@@ -72,7 +72,7 @@ class _AddCommunityPageState extends State<AddCommunityPage> {
     }
   }
 
-  // 🔥 5. PICK HEADER (CROP 16:9)
+  // PICK HEADER 
   Future<void> _pickHeader() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
@@ -94,7 +94,7 @@ class _AddCommunityPageState extends State<AddCommunityPage> {
     }
   }
 
-  // 🔥 FUNGSI CREATE COMMUNITY (SUDAH AKTIF & KONEK API)
+  // CREATE COMMUNITY
   Future<void> _createCommunity() async {
     if (_nameController.text.isEmpty || _selectedLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Name and Location are required!")));
@@ -133,7 +133,6 @@ class _AddCommunityPageState extends State<AddCommunityPage> {
         int newCommunityId = jsonResponse['id']; // Ambil ID komunitas baru
 
         if (mounted) {
-          // Sukses! Pindah ke Halaman Profil Komunitas Baru
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -292,7 +291,7 @@ class _AddCommunityPageState extends State<AddCommunityPage> {
                 children: [
                   _buildRowInput("Name", _nameController),
 
-                  // 🔥 6. SUBTITLE BARU
+                  // SUBTITLE
                   _buildRowInput("Sub", _subtitleController),
 
                   _buildRowInput("Description", _descController, maxLines: 4),
