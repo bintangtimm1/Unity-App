@@ -7,7 +7,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../config.dart';
 import '../widgets/verification_badge.dart';
 import 'menu_community.dart';
-import '../screens/notification_detail_post_page.dart'; // 🔥 Jangan lupa import ini King
+import '../screens/notification_detail_post_page.dart'; 
 
 class CommunityProfilePage extends StatefulWidget {
   final int communityId;
