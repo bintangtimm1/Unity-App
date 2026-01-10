@@ -124,39 +124,28 @@ class _AddPostPageState extends State<AddPostPage> {
             Positioned(
               left: 0,
               top: 0,
-              // Kita taruh di luar layar atau tumpuk di bawah.
-              // RepaintBoundary tetap bekerja walaupun ketutup widget lain.
               child: RepaintBoundary(
-                key: _cleanCropKey, // <--- CCTV KITA DISINI
+                key: _cleanCropKey,
                 child: Container(
                   width: 1.sw,
-                  // Tinggi mengikuti mode: 1.sw (Kotak) atau 1.25.sw (Portrait)
                   height: _isCoverMode ? 1.sw : 1.25.sw,
                   color: Colors.white,
-                  // Isi kontennya SAMA PERSIS dengan preview user
                   child: _selectedEntity != null
                       ? PostCropPreview(
                           entity: _selectedEntity!,
                           isSquareMode: _isCoverMode,
-                          controller: _cropController, // Pakai controller SAMA biar gerakannya sinkron
-                          readOnly: true, // ReadOnly = Gak ada grid/tombol/indikator scroll
+                          controller: _cropController, 
+                          readOnly: true, 
                         )
                       : const SizedBox(),
                 ),
               ),
             ),
-
-            // ============================================================
-            // 🔥 LAYER 1 (DEPAN): UI VISUAL (INTERAKTIF)
-            // Ini yang dilihat user (ada Header, Tombol, Grid Gallery, dll).
-            // Background putihnya menutupi Layer 0.
-            // ============================================================
             Positioned.fill(
               child: Container(
-                color: Colors.white, // Nutupin Layer 0
+                color: Colors.white, 
                 child: Column(
                   children: [
-                    // --- HEADER (FIXED) ---
                     SizedBox(
                       width: 1.sw,
                       height: 290.h,
@@ -173,7 +162,7 @@ class _AddPostPageState extends State<AddPostPage> {
                             top: 162.h,
                             width: 130.w,
                             child: GestureDetector(
-                              onTap: _cropAndNavigate, // KLIK NEXT -> JEPRET LAYER 0
+                              onTap: _cropAndNavigate,
                               child: _isProcessing
                                   ? const Center(child: CircularProgressIndicator())
                                   : Image.asset('assets/images/Next_post_button.png', fit: BoxFit.fitWidth),
@@ -188,7 +177,7 @@ class _AddPostPageState extends State<AddPostPage> {
                       child: CustomScrollView(
                         physics: _pageScrollPhysics,
                         slivers: [
-                          // A. PREVIEW CROP (INTERAKTIF)
+                          // A. PREVIEW CROP 
                           SliverToBoxAdapter(
                             child: _selectedEntity == null
                                 ? SizedBox(
