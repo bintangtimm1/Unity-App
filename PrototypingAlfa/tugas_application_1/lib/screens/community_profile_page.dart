@@ -7,7 +7,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../config.dart';
 import '../widgets/verification_badge.dart';
 import 'menu_community.dart';
-import '../screens/notification_detail_post_page.dart'; // 🔥 Jangan lupa import ini King
+import '../screens/notification_detail_post_page.dart';
+import 'community_approval_page.dart';
+import '../widgets/unite_item.dart';
+import 'create_unite_page.dart'; // 🔥 Jangan lupa import ini King
 
 class CommunityProfilePage extends StatefulWidget {
   final int communityId;
@@ -31,7 +34,7 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
   // 🔥 STATE JOIN (BARU)
   bool _isJoined = false;
   bool _isJoinLoading = false;
-  List _taggedPosts = []; // 🔥 Tambahkan ini
+  List _taggedPosts = [];
 
   @override
   void initState() {
@@ -135,6 +138,25 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
       print("Error joining: $e");
     } finally {
       setState(() => _isJoinLoading = false);
+    }
+  }
+
+  // 🔥 FUNGSI HAPUS CHAT
+  Future<void> _deleteUniteMessage(int messageId) async {
+    try {
+      // Optimistic Update: Hapus dulu dari UI biar cepet
+      setState(() {
+        _chatMessages.removeWhere((msg) => msg['id'] == messageId);
+      });
+
+      await http.post(
+        Uri.parse("${Config.baseUrl}/delete_community_message"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"message_id": messageId, "user_id": widget.currentUserId}),
+      );
+    } catch (e) {
+      print("Error delete chat: $e");
+      _fetchMessages(); // Kalau gagal, load ulang biar balik lagi
     }
   }
 
@@ -260,37 +282,63 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
                     Padding(
                       padding: EdgeInsets.only(right: 40.w),
                       child: Center(
-                        child: GestureDetector(
-                          // 🔥 UPDATE BAGIAN INI:
-                          onTap: () async {
-                            // Kita kirim _communityData (yang juga berisi ID-nya di dalamnya)
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MenuCommunityPage(
-                                  communityData: _communityData ?? {}, // Kirim Map Lengkap
-                                  currentUserId: widget.currentUserId,
-                                ),
+                        child: Container(
+                          height: 90.w,
+                          // Lebar menyesuaikan isi (Row), tapi dikasih padding kanan kiri
+                          padding: EdgeInsets.symmetric(horizontal: 30.w),
+                          decoration: BoxDecoration(
+                            // Logic warna background: Putih saat header transparan, Transparan saat sticky
+                            color: _isSticky ? Colors.transparent : Colors.white,
+                            // Bentuk Pil / Kapsul
+                            borderRadius: BorderRadius.circular(50.r),
+                            boxShadow: _isSticky
+                                ? []
+                                : [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min, // Biar lebarnya pas sesuai isi
+                            children: [
+                              // 1. TOMBOL APPROVAL (KIRI)
+                              GestureDetector(
+                                onTap: () {
+                                  // Navigasi Langsung ke Approval Page
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => CommunityApprovalPage(
+                                        communityId: widget.communityId,
+                                        currentUserId: widget.currentUserId,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                // Icon Checklist / Fact Check untuk Approval
+                                child: Icon(Icons.fact_check_outlined, color: Colors.black, size: 60.sp),
                               ),
-                            );
 
-                            // Kalau balik bawa 'true', refresh halaman profile biar data baru muncul
-                            if (result == true) {
-                              _fetchCommunityData();
-                            }
-                          },
-                          child: Container(
-                            width: 90.w,
-                            height: 90.w,
-                            decoration: BoxDecoration(
-                              color: _isSticky ? Colors.transparent : Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: _isSticky
-                                  ? []
-                                  : [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-                            ),
-                            alignment: Alignment.center,
-                            child: Icon(Icons.menu_sharp, color: Colors.black, size: 70.sp),
+                              // PEMBATAS KECIL ANTAR ICON (OPSIONAL)
+                              SizedBox(width: 40.w),
+
+                              // 2. TOMBOL MENU (KANAN - EXISTING)
+                              GestureDetector(
+                                onTap: () async {
+                                  final result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => MenuCommunityPage(
+                                        communityData: _communityData ?? {},
+                                        currentUserId: widget.currentUserId,
+                                      ),
+                                    ),
+                                  );
+
+                                  if (result == true) {
+                                    _fetchCommunityData();
+                                  }
+                                },
+                                child: Icon(Icons.menu_sharp, color: Colors.black, size: 60.sp),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -567,6 +615,7 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
   }
 
   Widget _buildUniteTab() {
+    // 1. KONDISI BELUM JOIN (TAMPILAN GEMBOK)
     if (!_isJoined) {
       return Center(
         child: Column(
@@ -582,40 +631,61 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
         ),
       );
     }
-    return _chatMessages.isEmpty
-        ? Center(
-            child: Text(
-              "No discussions yet.",
-              style: TextStyle(fontSize: 34.sp, color: Colors.grey),
-            ),
-          )
-        : ListView.separated(
-            padding: EdgeInsets.symmetric(vertical: 20.h),
-            itemCount: _chatMessages.length,
-            separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey.shade100),
-            itemBuilder: (context, index) {
-              final msg = _chatMessages[index];
-              return ListTile(
-                contentPadding: EdgeInsets.symmetric(horizontal: 40.w, vertical: 10.h),
-                leading: CircleAvatar(
-                  backgroundColor: Colors.grey.shade200,
-                  backgroundImage: (msg['avatar_url'] != null) ? CachedNetworkImageProvider(msg['avatar_url']) : null,
+
+    // 2. KONDISI SUDAH JOIN (LIST CHAT + TOMBOL)
+    return Stack(
+      children: [
+        // LAYER 1: LIST CHAT
+        _chatMessages.isEmpty
+            ? Center(
+                child: Text(
+                  "No discussions yet.\nTap + to start one!",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 34.sp, color: Colors.grey),
                 ),
-                title: Text(
-                  msg['username'],
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 32.sp),
-                ),
-                subtitle: Text(
-                  msg['content'],
-                  style: TextStyle(fontSize: 32.sp, color: Colors.black87),
-                ),
-                trailing: Text(
-                  msg['created_at'].substring(11, 16),
-                  style: TextStyle(fontSize: 26.sp, color: Colors.grey),
+              )
+            : ListView.builder(
+                padding: EdgeInsets.only(bottom: 200.h), // Padding bawah biar chat terakhir gak ketutup tombol
+                itemCount: _chatMessages.length,
+                itemBuilder: (context, index) {
+                  final msg = _chatMessages[index];
+                  return UniteItem(
+                    message: msg,
+                    currentUserId: widget.currentUserId,
+                    communityOwnerId: _communityData?['owner_id'] ?? 0,
+                    onDelete: _deleteUniteMessage,
+                  );
+                },
+              ),
+
+        // LAYER 2: TOMBOL CREATE (DI DALAM TAB)
+        Positioned(
+          bottom: 150.h,
+          right: 50.w,
+          child: FloatingActionButton(
+            heroTag: "btn_unite", // Kasih tag unik biar gak error hero animation
+            onPressed: () async {
+              // Buka Halaman Create Unite
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      CreateUnitePage(communityId: widget.communityId, currentUserId: widget.currentUserId),
                 ),
               );
+
+              // Kalau sukses post (result == true), refresh chat
+              if (result == true) {
+                _fetchMessages();
+              }
             },
-          );
+            backgroundColor: Colors.blue,
+            elevation: 4,
+            child: Icon(Icons.add, color: Colors.white, size: 50.sp),
+          ),
+        ),
+      ],
+    );
   }
 }
 
