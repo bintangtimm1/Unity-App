@@ -10,7 +10,7 @@ import 'menu_community.dart';
 import '../screens/notification_detail_post_page.dart';
 import 'community_approval_page.dart';
 import '../widgets/unite_item.dart';
-import 'create_unite_page.dart'; // 🔥 Jangan lupa import ini King
+import 'create_unite_page.dart';
 
 class CommunityProfilePage extends StatefulWidget {
   final int communityId;
@@ -28,13 +28,13 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
 
   Map<String, dynamic>? _communityData;
   List _chatMessages = [];
+  List _taggedPosts = [];
   bool _isLoading = true;
   bool _isSticky = false;
-
-  // 🔥 STATE JOIN (BARU)
   bool _isJoined = false;
   bool _isJoinLoading = false;
-  List _taggedPosts = [];
+
+  double _listHeight = 1000.h;
 
   @override
   void initState() {
@@ -50,13 +50,54 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
       }
     });
 
+    // Listener untuk update tinggi saat ganti tab
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {
+          _calculateListHeight();
+        });
+      }
+    });
+
     _fetchData();
   }
 
   Future<void> _fetchData() async {
     await _fetchCommunityData();
     await _fetchMessages();
-    await _fetchTaggedPosts(); // 🔥 Panggil ini
+    await _fetchTaggedPosts();
+    if (mounted) setState(() => _calculateListHeight());
+  }
+
+  void _calculateListHeight() {
+    double minHeight = 0.747.sh; // Magic Number King
+    double calculatedHeight = 0;
+
+    if (_tabController.index == 0) {
+      if (_taggedPosts.isEmpty) {
+        calculatedHeight = 0;
+      } else {
+        double itemSize = (1.sw) / 3;
+        int rows = (_taggedPosts.length / 3).ceil();
+        calculatedHeight = (rows * itemSize) + 300.h;
+      }
+    } else {
+      if (!_isJoined || _chatMessages.isEmpty) {
+        calculatedHeight = 0;
+      } else {
+        double totalChatHeight = 0;
+        for (var msg in _chatMessages) {
+          String content = msg['content'] ?? "";
+          double baseItemHeight = 180.h;
+          double textLines = (content.length / 40).ceilToDouble();
+          if (textLines < 1) textLines = 1;
+          double textHeight = textLines * 30.h;
+          totalChatHeight += (baseItemHeight + textHeight);
+        }
+        calculatedHeight = totalChatHeight + 200.h;
+      }
+    }
+    _listHeight = (calculatedHeight > minHeight) ? calculatedHeight : minHeight;
   }
 
   Future<void> _fetchTaggedPosts() async {
@@ -68,7 +109,7 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
         if (mounted) setState(() => _taggedPosts = jsonDecode(response.body));
       }
     } catch (e) {
-      print("Error fetching tagged posts: $e");
+      print("Error tagged: $e");
     }
   }
 
@@ -84,17 +125,13 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
           final data = jsonDecode(response.body);
           setState(() {
             _communityData = data;
-            // 🔥 AMBIL STATUS JOIN (SAFE CHECK)
             _isJoined = data['is_joined'] ?? false;
             _isLoading = false;
           });
         }
-      } else {
-        print("Server Error: ${response.statusCode}");
-        if (mounted) setState(() => _isLoading = false); // Biar gak loading terus
       }
     } catch (e) {
-      print("Error fetching community: $e");
+      print("Error data: $e");
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -108,11 +145,10 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
         if (mounted) setState(() => _chatMessages = jsonDecode(response.body));
       }
     } catch (e) {
-      print("Error fetching messages: $e");
+      print("Error messages: $e");
     }
   }
 
-  // 🔥 FUNGSI TOGGLE JOIN (BARU)
   Future<void> _toggleJoin() async {
     setState(() => _isJoinLoading = true);
     try {
@@ -121,42 +157,37 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"community_id": widget.communityId, "user_id": widget.currentUserId}),
       );
-
       if (response.statusCode == 200) {
         setState(() {
           _isJoined = !_isJoined;
-
-          // Update manual jumlah member biar UI responsif
           if (_communityData != null && _communityData!['stats'] != null) {
             int current = _communityData!['stats']['members'];
             _communityData!['stats']['members'] = _isJoined ? current + 1 : current - 1;
           }
         });
-        if (_isJoined) _fetchMessages(); // Ambil chat kalau baru join
+        if (_isJoined) {
+          await _fetchMessages();
+          _calculateListHeight();
+        }
       }
     } catch (e) {
-      print("Error joining: $e");
+      print("Error join: $e");
     } finally {
       setState(() => _isJoinLoading = false);
     }
   }
 
-  // 🔥 FUNGSI HAPUS CHAT
   Future<void> _deleteUniteMessage(int messageId) async {
     try {
-      // Optimistic Update: Hapus dulu dari UI biar cepet
-      setState(() {
-        _chatMessages.removeWhere((msg) => msg['id'] == messageId);
-      });
-
+      setState(() => _chatMessages.removeWhere((msg) => msg['id'] == messageId));
+      _calculateListHeight();
       await http.post(
         Uri.parse("${Config.baseUrl}/delete_community_message"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"message_id": messageId, "user_id": widget.currentUserId}),
       );
     } catch (e) {
-      print("Error delete chat: $e");
-      _fetchMessages(); // Kalau gagal, load ulang biar balik lagi
+      _fetchMessages();
     }
   }
 
@@ -171,6 +202,7 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
 
     return Scaffold(
       backgroundColor: Colors.white,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           // 1. BACKGROUND IMAGE
@@ -183,15 +215,10 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
                 ? CachedNetworkImage(imageUrl: data['header_url'], fit: BoxFit.cover)
                 : Container(
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.blue.shade700, Colors.blue.shade400],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      gradient: LinearGradient(colors: [Colors.blue.shade700, Colors.blue.shade400]),
                     ),
                   ),
           ),
-
           Positioned(
             top: 0,
             left: 0,
@@ -208,24 +235,24 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
             ),
           ),
 
-          // 2. SCROLLABLE CONTENT
+          // 2. MONOLITHIC SCROLL VIEW
           CustomScrollView(
             controller: _scrollController,
-            physics: const BouncingScrollPhysics(),
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             slivers: [
-              // A. STICKY HEADER
+              // A. STICKY APP BAR
               SliverAppBar(
                 pinned: true,
                 expandedHeight: 0,
                 toolbarHeight: 180.h,
                 backgroundColor: _isSticky ? const Color.fromARGB(255, 255, 255, 255) : Colors.transparent,
                 elevation: _isSticky ? 2 : 0,
-                shadowColor: Colors.black.withOpacity(0.1),
                 systemOverlayStyle: _isSticky ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
-
                 leadingWidth: 200.w,
                 leading: Padding(
-                  padding: EdgeInsets.only(left: 40.w),
+                  // 1. GESER TOMBOL DARI PINGGIR LAYAR (Outer Padding)
+                  // Naikkan dari 40.w ke 50.w biar agak masuk
+                  padding: EdgeInsets.only(left: 50.w),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: GestureDetector(
@@ -234,40 +261,34 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
                         width: 80.w,
                         height: 80.w,
                         decoration: BoxDecoration(
-                          color: _isSticky ? Colors.transparent : const Color.fromARGB(255, 255, 255, 255),
+                          color: _isSticky ? Colors.transparent : Colors.white,
                           shape: BoxShape.circle,
                           boxShadow: _isSticky
                               ? []
                               : [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
                         ),
-                        padding: EdgeInsets.only(left: 24.w),
+                        // 2. GESER ICON DI DALAM LINGKARAN (Inner Padding)
+                        // Naikkan dari 24.w ke 35.w biar icon-nya pas di tengah visual
+                        padding: EdgeInsets.only(left: 20.w),
                         alignment: Alignment.center,
                         child: Icon(Icons.arrow_back_ios, color: Colors.black, size: 55.sp),
                       ),
                     ),
                   ),
                 ),
-
-                // 🔥 BAGIAN TITLE YANG DIUBAH 🔥
                 title: AnimatedOpacity(
                   duration: const Duration(milliseconds: 200),
                   opacity: _isSticky ? 1.0 : 0.0,
                   child: Column(
-                    mainAxisSize: MainAxisSize.min, // Biar ga makan tempat
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 1. Judul "Community"
                       Text(
                         "Community",
                         style: TextStyle(color: Colors.black, fontSize: 36.sp, fontWeight: FontWeight.bold),
                       ),
-                      // 2. Nama Community (Kecil & Abu-abu)
                       Text(
                         data['name'] ?? "",
-                        style: TextStyle(
-                          color: Colors.grey, // Warna Abu-abu
-                          fontSize: 40.sp, // Ukuran lebih kecil
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: TextStyle(color: Colors.grey, fontSize: 40.sp, fontWeight: FontWeight.w600),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -275,51 +296,37 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
                   ),
                 ),
                 centerTitle: true,
-
                 actions: [
-                  // 🔥 LOGIC: HANYA TAMPIL KALAU DIA OWNER
                   if (isOwner)
                     Padding(
                       padding: EdgeInsets.only(right: 40.w),
                       child: Center(
                         child: Container(
                           height: 90.w,
-                          // Lebar menyesuaikan isi (Row), tapi dikasih padding kanan kiri
                           padding: EdgeInsets.symmetric(horizontal: 30.w),
                           decoration: BoxDecoration(
-                            // Logic warna background: Putih saat header transparan, Transparan saat sticky
                             color: _isSticky ? Colors.transparent : Colors.white,
-                            // Bentuk Pil / Kapsul
                             borderRadius: BorderRadius.circular(50.r),
                             boxShadow: _isSticky
                                 ? []
                                 : [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
                           ),
                           child: Row(
-                            mainAxisSize: MainAxisSize.min, // Biar lebarnya pas sesuai isi
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              // 1. TOMBOL APPROVAL (KIRI)
                               GestureDetector(
-                                onTap: () {
-                                  // Navigasi Langsung ke Approval Page
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => CommunityApprovalPage(
-                                        communityId: widget.communityId,
-                                        currentUserId: widget.currentUserId,
-                                      ),
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => CommunityApprovalPage(
+                                      communityId: widget.communityId,
+                                      currentUserId: widget.currentUserId,
                                     ),
-                                  );
-                                },
-                                // Icon Checklist / Fact Check untuk Approval
+                                  ),
+                                ),
                                 child: Icon(Icons.fact_check_outlined, color: Colors.black, size: 60.sp),
                               ),
-
-                              // PEMBATAS KECIL ANTAR ICON (OPSIONAL)
                               SizedBox(width: 40.w),
-
-                              // 2. TOMBOL MENU (KANAN - EXISTING)
                               GestureDetector(
                                 onTap: () async {
                                   final result = await Navigator.push(
@@ -331,10 +338,7 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
                                       ),
                                     ),
                                   );
-
-                                  if (result == true) {
-                                    _fetchCommunityData();
-                                  }
+                                  if (result == true) _fetchCommunityData();
                                 },
                                 child: Icon(Icons.menu_sharp, color: Colors.black, size: 60.sp),
                               ),
@@ -346,34 +350,28 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
                 ],
               ),
 
+              // B. SPACER & INFO
               SliverToBoxAdapter(child: SizedBox(height: 450.h - 250.h)),
-
-              // C. WHITE BODY
               SliverToBoxAdapter(
                 child: Stack(
                   clipBehavior: Clip.none,
                   alignment: Alignment.topCenter,
                   children: [
-                    // 1. KOTAK PUTIH (BODY)
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.vertical(top: Radius.circular(80.r)),
                       ),
-                      // Padding atas disesuaikan biar nama tidak ketabrak avatar
                       padding: EdgeInsets.fromLTRB(70.w, (iconSize / 2) + 80.h, 70.w, 40.h),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // --- NAMA COMMUNITY (Sekarang Full Width Tanpa Badge) ---
                           Text(
                             data['name'] ?? "No Name",
                             style: TextStyle(fontSize: 65.sp, fontWeight: FontWeight.w900, height: 1.1),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-
-                          // --- SUBTITLE & LOKASI ---
                           SizedBox(height: 10.h),
                           Row(
                             children: [
@@ -401,14 +399,11 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
                               ),
                             ],
                           ),
-
                           SizedBox(height: 30.h),
                           Text(
                             data['description'] ?? "",
                             style: TextStyle(fontSize: 40.sp, height: 1.5, color: Colors.black87),
                           ),
-
-                          // --- TOMBOL JOIN ---
                           SizedBox(height: 40.h),
                           SizedBox(
                             width: double.infinity,
@@ -436,25 +431,20 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
                                     ),
                             ),
                           ),
-
                           SizedBox(height: 50.h),
-
-                          // --- STATISTIK ---
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              _buildStatsItem("Tagged Post", "0"),
-                              Container(height: 100.h, width: 3.w, color: const Color.fromARGB(255, 0, 0, 0)),
+                              _buildStatsItem("Tagged Post", "${_taggedPosts.length}"),
+                              Container(height: 100.h, width: 3.w, color: Colors.black),
                               _buildStatsItem("Members", (data['stats']?['members'] ?? 0).toString()),
-                              Container(height: 100.h, width: 3.w, color: const Color.fromARGB(255, 0, 0, 0)),
+                              Container(height: 100.h, width: 3.w, color: Colors.black),
                               _buildStatsItem("Total Event", (data['stats']?['events'] ?? 0).toString()),
                             ],
                           ),
                         ],
                       ),
                     ),
-
-                    // 2. AVATAR (POJOK KIRI ATAS)
                     Positioned(
                       top: -(iconSize / 2),
                       left: 50.w,
@@ -467,15 +457,9 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
                           backgroundImage: (data['icon_url'] != null && data['icon_url'] != "")
                               ? CachedNetworkImageProvider(data['icon_url'])
                               : null,
-                          child: (data['icon_url'] == null || data['icon_url'] == "")
-                              ? Icon(Icons.groups, size: 80.sp, color: Colors.grey)
-                              : null,
                         ),
                       ),
                     ),
-
-                    // 3. BADGE VENDOR (POJOK KANAN ATAS - SEJAJAR PROFIL)
-                    // top: 40.h memastikannya ada di dalam area putih, tapi sejajar dengan bagian bawah avatar.
                     Positioned(
                       top: 60.h,
                       right: 60.w,
@@ -491,7 +475,7 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
                 ),
               ),
 
-              // D. TABS
+              // C. TAB BAR STICKY
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _CommunityTabBarDelegate(
@@ -513,20 +497,82 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
                 ),
               ),
 
-              SliverFillRemaining(
+              // D. CONTENT BODY (MONOLITHIC)
+              SliverToBoxAdapter(
                 child: Container(
                   color: Colors.white,
-                  child: TabBarView(controller: _tabController, children: [_buildTaggedTab(), _buildUniteTab()]),
+                  child: SizedBox(
+                    height: _listHeight,
+                    child: TabBarView(controller: _tabController, children: [_buildTaggedTab(), _buildUniteTab()]),
+                  ),
                 ),
               ),
+
+              SliverToBoxAdapter(child: SizedBox(height: 200.h)),
             ],
           ),
+
+          // 🔥 3. TOMBOL CREATE UNITE (FLOATING GHOST - ANIMATED)
+          if (_isJoined)
+            Positioned(
+              // ✅ Positioned WAJIB jadi bapak paling luar di dalam Stack
+              bottom: 100.h,
+              right: 60.w,
+              child: AnimatedBuilder(
+                animation: _tabController.animation!,
+                builder: (context, child) {
+                  // Logic: Index 1 (Unite) -> Value 1.0 -> Offset 0
+                  // Index 0 (Tagged) -> Value 0.0 -> Offset Geser Kanan
+                  double value = _tabController.animation!.value;
+                  double translateX = (1.0 - value) * 200.w; // Geser 200 pixel ke kanan kalau bukan tab Unite
+
+                  // Optimasi: Kalau sudah kegeser jauh, hide aja biar gak bisa diklik
+                  if (translateX > 100.w) return const SizedBox();
+
+                  return Transform.translate(offset: Offset(translateX, 0), child: child);
+                },
+                child: FloatingActionButton(
+                  heroTag: "btn_unite",
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            CreateUnitePage(communityId: widget.communityId, currentUserId: widget.currentUserId),
+                      ),
+                    );
+                    if (result == true) {
+                      await _fetchMessages();
+                      Future.delayed(const Duration(milliseconds: 500), () => _calculateListHeight());
+                    }
+                  },
+                  backgroundColor: Colors.blue,
+                  elevation: 4,
+                  child: Icon(Icons.add, color: Colors.white, size: 50.sp),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  // --- WIDGET HELPER ---
+  // --- WIDGETS ---
+  Widget _buildStatsItem(String label, String count) {
+    return Column(
+      children: [
+        Text(
+          count,
+          style: TextStyle(fontSize: 80.sp, fontWeight: FontWeight.w600),
+        ),
+        Text(
+          label,
+          style: TextStyle(fontSize: 35.sp, color: Colors.black, fontWeight: FontWeight.w500),
+        ),
+      ],
+    );
+  }
+
   Widget _buildVendorBadge() {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 40.w, vertical: 10.h),
@@ -544,38 +590,22 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
     );
   }
 
-  Widget _buildStatsItem(String label, String count) {
-    return Column(
-      children: [
-        Text(
-          count,
-          style: TextStyle(fontSize: 80.sp, fontWeight: FontWeight.w600),
-        ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 35.sp, color: const Color.fromARGB(255, 0, 0, 0), fontWeight: FontWeight.w500),
-        ),
-      ],
-    );
-  }
-
   Widget _buildTaggedTab() {
     if (_taggedPosts.isEmpty) {
       return Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            SizedBox(height: 100.h),
             Icon(Icons.image_not_supported_outlined, size: 200.sp, color: Colors.grey.shade300),
             SizedBox(height: 30.h),
             Text(
-              "This community has no post tags yet",
+              "No posts yet",
               style: TextStyle(fontSize: 36.sp, color: Colors.grey.shade500, fontWeight: FontWeight.bold),
             ),
           ],
         ),
       );
     }
-
     return GridView.builder(
       padding: EdgeInsets.zero,
       physics: const NeverScrollableScrollPhysics(),
@@ -588,26 +618,17 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
       ),
       itemBuilder: (context, index) {
         final post = _taggedPosts[index];
-
         return InkWell(
-          // 🔥 UBAH BAGIAN INI 🔥
-          onTap: () {
-            // Navigasi ke NotificationDetailPostPage (Single Post View)
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => NotificationDetailPostPage(
-                  postId: post['id'], // Kirim ID Postingan
-                  currentUserId: widget.currentUserId, // Kirim ID User yang login
-                ),
-              ),
-            );
-          },
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => NotificationDetailPostPage(postId: post['id'], currentUserId: widget.currentUserId),
+            ),
+          ),
           child: CachedNetworkImage(
             imageUrl: post['image_url'],
             fit: BoxFit.cover,
             placeholder: (_, __) => Container(color: Colors.grey.shade200),
-            errorWidget: (_, __, ___) => Container(color: Colors.grey.shade300, child: Icon(Icons.error)),
           ),
         );
       },
@@ -615,89 +636,44 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
   }
 
   Widget _buildUniteTab() {
-    // 1. KONDISI BELUM JOIN (TAMPILAN GEMBOK)
     if (!_isJoined) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.lock_outline, size: 150.sp, color: Colors.grey),
-            SizedBox(height: 30.h),
-            Text(
-              "Join community to see discussions",
-              style: TextStyle(fontSize: 36.sp, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
-            ),
-          ],
+        child: Text(
+          "Join to view discussions",
+          style: TextStyle(fontSize: 36.sp, color: Colors.grey),
         ),
       );
     }
-
-    // 2. KONDISI SUDAH JOIN (LIST CHAT + TOMBOL)
-    return Stack(
-      children: [
-        // LAYER 1: LIST CHAT
-        _chatMessages.isEmpty
-            ? Center(
-                child: Text(
-                  "No discussions yet.\nTap + to start one!",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 34.sp, color: Colors.grey),
-                ),
-              )
-            : ListView.builder(
-                padding: EdgeInsets.only(bottom: 200.h), // Padding bawah biar chat terakhir gak ketutup tombol
-                itemCount: _chatMessages.length,
-                itemBuilder: (context, index) {
-                  final msg = _chatMessages[index];
-                  return UniteItem(
-                    message: msg,
-                    currentUserId: widget.currentUserId,
-                    communityOwnerId: _communityData?['owner_id'] ?? 0,
-                    onDelete: _deleteUniteMessage,
-                  );
-                },
-              ),
-
-        // LAYER 2: TOMBOL CREATE (DI DALAM TAB)
-        Positioned(
-          bottom: 150.h,
-          right: 50.w,
-          child: FloatingActionButton(
-            heroTag: "btn_unite", // Kasih tag unik biar gak error hero animation
-            onPressed: () async {
-              // Buka Halaman Create Unite
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      CreateUnitePage(communityId: widget.communityId, currentUserId: widget.currentUserId),
-                ),
+    return _chatMessages.isEmpty
+        ? Center(
+            child: Text(
+              "No discussions yet",
+              style: TextStyle(fontSize: 34.sp, color: Colors.grey),
+            ),
+          )
+        : ListView.builder(
+            padding: EdgeInsets.zero,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _chatMessages.length,
+            itemBuilder: (context, index) {
+              return UniteItem(
+                message: _chatMessages[index],
+                currentUserId: widget.currentUserId,
+                communityOwnerId: _communityData?['owner_id'] ?? 0,
+                onDelete: _deleteUniteMessage,
               );
-
-              // Kalau sukses post (result == true), refresh chat
-              if (result == true) {
-                _fetchMessages();
-              }
             },
-            backgroundColor: Colors.blue,
-            elevation: 4,
-            child: Icon(Icons.add, color: Colors.white, size: 50.sp),
-          ),
-        ),
-      ],
-    );
+          );
   }
 }
 
 class _CommunityTabBarDelegate extends SliverPersistentHeaderDelegate {
   final TabBar tabBar;
   _CommunityTabBarDelegate({required this.tabBar});
-
   @override
   double get minExtent => 90.h;
   @override
   double get maxExtent => 90.h;
-
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
