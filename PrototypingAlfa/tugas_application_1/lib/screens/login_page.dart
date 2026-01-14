@@ -76,10 +76,13 @@ class _LoginPageState extends State<LoginPage> {
     String url = "${Config.baseUrl}/login";
 
     try {
+      String rawUsername = _usernameController.text.trim();
+
       final response = await http.post(
         Uri.parse(url),
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"username": _usernameController.text, "password": _passwordController.text}),
+        // Kirim rawUsername
+        body: jsonEncode({"username": rawUsername, "password": _passwordController.text}),
       );
 
       if (response.statusCode == 200) {
@@ -88,7 +91,8 @@ class _LoginPageState extends State<LoginPage> {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => MainScreen(username: data['username'] ?? "User", userId: data['user_id']),
+              builder: (context) =>
+                  MainScreen(username: data['display_name'] ?? data['username'] ?? "User", userId: data['user_id']),
             ),
           );
         }
@@ -163,7 +167,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
 
-                    // 🔥 UPDATE 1: USERNAME INPUT (CENTERED) 🔥
                     // --- INPUT USERNAME ---
                     Positioned(
                       left: 88.w,
@@ -188,21 +191,17 @@ class _LoginPageState extends State<LoginPage> {
                             onChanged: (value) {
                               if (_errorMessage != null) setState(() => _errorMessage = null);
                             },
-                            // 🔥 HAPUS textAlignVertical (Kita atur manual pake padding)
                             style: TextStyle(
                               fontSize: 40.sp,
                               color: Colors.black,
                               fontWeight: FontWeight.w400,
-                              height: 1.0, // 🔥 TAMBAH INI: Biar tinggi barisnya gak aneh
+                              height: 1.0,
                             ),
                             decoration: InputDecoration(
                               hintText: "Username",
                               hintStyle: TextStyle(fontSize: 40.sp, color: Colors.grey.shade400),
                               border: InputBorder.none,
-
-                              // 🔥 SOLUSI UTAMA: Padding Manual biar pas di tengah 🔥
-                              // 111 (Tinggi Kotak) - 40 (Font) = Sisa 71 -> Bagi 2 = ~35
-                              isDense: true, // Biar padding-nya nurut
+                              isDense: true,
                               contentPadding: EdgeInsets.symmetric(vertical: 30.h),
                             ),
                           ),
@@ -239,26 +238,19 @@ class _LoginPageState extends State<LoginPage> {
                               fontSize: 40.sp,
                               color: Colors.black,
                               fontWeight: FontWeight.w400,
-                              height: 1.0, // 🔥 JANGAN LUPA INI JUGA
+                              height: 1.0,
                             ),
                             decoration: InputDecoration(
                               hintText: "Password",
                               hintStyle: TextStyle(fontSize: 40.sp, color: Colors.grey.shade400),
                               border: InputBorder.none,
-
-                              // 🔥 PADDING MANUAL JUGA 🔥
                               isDense: true,
                               contentPadding: EdgeInsets.symmetric(vertical: 35.h),
-
                               suffixIcon: Padding(
-                                // 🔥 ATUR JARAK DI SINI KING (Makin kecil makin ke kanan)
-                                // Tadi 10.w, sekarang coba 0 atau 5.w biar mepet
                                 padding: EdgeInsets.only(left: 70.w),
                                 child: IconButton(
-                                  // 🔥 TRIK RAHASIA: Matikan padding internal tombolnya
                                   padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(), // Biar gak makan tempat
-
+                                  constraints: const BoxConstraints(),
                                   iconSize: 35.sp,
                                   icon: Icon(_isObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
                                   onPressed: () {
@@ -336,7 +328,7 @@ class _LoginPageState extends State<LoginPage> {
                       child: Image.asset('assets/images/login_social_media.png', fit: BoxFit.fill),
                     ),
 
-                    // --- DONT HAVE ACCOUNT (Jangkar Bawah) ---
+                    // --- DONT HAVE ACCOUNT ---
                     Positioned(
                       left: 260.w,
                       bottom: 250.h,
@@ -357,7 +349,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
 
-                    // --- S&K / TERMS (Jangkar Bawah) ---
+                    // --- S&K / TERMS ---
                     Positioned(
                       left: 139.w,
                       bottom: 180.h,

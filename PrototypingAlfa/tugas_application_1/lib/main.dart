@@ -42,13 +42,13 @@ class MyApp extends StatelessWidget {
           ),
 
           // Login Page
-          //home: const LoginPage(),
+          home: const LoginPage(),
 
           // Main Page user
           //home: const MainScreen(username: "Centaury (Dev)", userId: 1),
           //home: const MainScreen(username: "bintang_timur (Dev)", userId: 2),
           //home: const MainScreen(username: "Photoshop (Dev)", userId: 3),
-          home: const MainScreen(username: "Illustrator (Dev)", userId: 5),
+          //home: const MainScreen(username: "Illustrator (Dev)", userId: 5),
 
           //Profile Page
           //home: ProfilePage(userId: 1),

@@ -91,7 +91,7 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> with Single
           double baseItemHeight = 180.h;
           double textLines = (content.length / 40).ceilToDouble();
           if (textLines < 1) textLines = 1;
-          double textHeight = textLines * 30.h;
+          double textHeight = textLines * 40.h;
           totalChatHeight += (baseItemHeight + textHeight);
         }
         calculatedHeight = totalChatHeight + 200.h;
