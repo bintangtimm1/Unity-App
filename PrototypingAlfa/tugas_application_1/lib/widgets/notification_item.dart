@@ -15,7 +15,11 @@ class NotificationItem extends StatelessWidget {
   Widget build(BuildContext context) {
     // Ambil data dari notif
     int senderId = notif['sender_id'];
-    String senderName = notif['sender_username'] ?? "User";
+
+    // 🔥 UPDATE: PRIORITASKAN DISPLAY NAME
+    String senderName = notif['sender_display_name'] ?? notif['sender_username'] ?? "User";
+    String rawUsername = notif['sender_username'] ?? "User"; // Username asli buat navigasi (opsional)
+
     String senderAvatar = notif['sender_profile_pic'] ?? "";
     String type = notif['type'];
     String? postImage = notif['post_image_url'];
@@ -76,7 +80,7 @@ class NotificationItem extends StatelessWidget {
                       style: TextStyle(color: Colors.black, fontSize: 36.sp),
                       children: [
                         TextSpan(
-                          text: "$senderName ",
+                          text: "$senderName ", // 🔥 INI SUDAH DISPLAY NAME
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         TextSpan(text: message),
@@ -97,7 +101,6 @@ class NotificationItem extends StatelessWidget {
           if ((type == 'like' || type == 'comment') && postImage != null && postId != null)
             GestureDetector(
               onTap: () {
-                // 🔥 Navigasi ke Halaman Detail Post yang baru kita buat
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -115,8 +118,6 @@ class NotificationItem extends StatelessWidget {
                 ),
               ),
             ),
-
-          // Kalau follow, mungkin bisa kasih tombol follow back (opsional)
         ],
       ),
     );

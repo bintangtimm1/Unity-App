@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image_cropper/image_cropper.dart'; // 🔥 1. IMPORT INI
+import 'package:image_cropper/image_cropper.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -19,8 +19,12 @@ class EditProfilePage extends StatefulWidget {
 }
 
 class _EditProfilePageState extends State<EditProfilePage> {
+  late TextEditingController _displayNameController;
   late TextEditingController _usernameController;
   late TextEditingController _bioController;
+
+  // 🔥 VARIABLE ERROR (SATPAM)
+  String? _usernameError;
 
   File? _avatarFile;
   File? _headerFile;
@@ -30,71 +34,90 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   void initState() {
     super.initState();
+    _displayNameController = TextEditingController(
+      text: widget.userProfile['display_name'] ?? widget.userProfile['username'],
+    );
     _usernameController = TextEditingController(text: widget.userProfile['username']);
     _bioController = TextEditingController(text: widget.userProfile['bio'] ?? "");
   }
 
   @override
   void dispose() {
+    _displayNameController.dispose();
     _usernameController.dispose();
     _bioController.dispose();
     super.dispose();
   }
 
-  // 🔥 FUNGSI CROPPER UMUM
+  // 🔥 FUNGSI VALIDASI REAL-TIME (CCTV)
+  void _validateUsername(String value) {
+    String? newError;
+
+    if (value.isEmpty) {
+      newError = "Username tidak boleh kosong!";
+    } else if (value.contains(' ')) {
+      newError = "Tidak boleh ada spasi!";
+    } else if (value != value.toLowerCase()) {
+      newError = "Gunakan huruf kecil semua!";
+    } else {
+      final validCharacters = RegExp(r'^[a-z0-9._]+$');
+      if (!validCharacters.hasMatch(value)) {
+        newError = "Hanya huruf, angka, titik, & underscore!";
+      }
+    }
+
+    // Hanya update UI jika status error berubah (biar gak kedip)
+    if (_usernameError != newError) {
+      setState(() {
+        _usernameError = newError;
+      });
+    }
+  }
+
+  // --- CROPPER HELPERS ---
   Future<File?> _cropImage({required File imageFile, required CropAspectRatioPreset preset}) async {
     CroppedFile? croppedFile = await ImageCropper().cropImage(
       sourcePath: imageFile.path,
-      // Konfigurasi tampilan Cropper biar mirip tema aplikasi (Putih/Hitam)
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: 'Position & Crop',
           toolbarColor: Colors.white,
           toolbarWidgetColor: Colors.black,
           initAspectRatio: preset,
-          lockAspectRatio: true, // KUNCI RASIO BIAR GAK PENYOK
+          lockAspectRatio: true,
           hideBottomControls: false,
         ),
-        IOSUiSettings(
-          title: 'Position & Crop',
-          aspectRatioLockEnabled: true, // KUNCI RASIO IOS
-        ),
+        IOSUiSettings(title: 'Position & Crop', aspectRatioLockEnabled: true),
       ],
     );
-
-    if (croppedFile != null) {
-      return File(croppedFile.path);
-    }
-    return null; // Kalau user cancel crop
+    if (croppedFile != null) return File(croppedFile.path);
+    return null;
   }
 
-  // 🔥 PICK AVATAR (RATIO 1:1)
   Future<void> _pickAvatar() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
-      // Lempar ke Cropper dengan Preset SQUARE (Persegi)
       File? cropped = await _cropImage(imageFile: File(image.path), preset: CropAspectRatioPreset.square);
-
-      if (cropped != null) {
-        setState(() => _avatarFile = cropped);
-      }
+      if (cropped != null) setState(() => _avatarFile = cropped);
     }
   }
 
-  // 🔥 PICK HEADER (RATIO 16:9)
   Future<void> _pickHeader() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
-      // Lempar ke Cropper dengan Preset 16:9
       File? cropped = await _cropImage(imageFile: File(image.path), preset: CropAspectRatioPreset.ratio16x9);
-
-      if (cropped != null) {
-        setState(() => _headerFile = cropped);
-      }
+      if (cropped != null) setState(() => _headerFile = cropped);
     }
   }
 
   Future<void> _saveProfile() async {
+    // 🔥 CEK VALIDASI TERAKHIR SEBELUM KIRIM
+    _validateUsername(_usernameController.text);
+    if (_usernameError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_usernameError!), backgroundColor: Colors.red));
+      return; // STOP DISINI JIKA ERROR
+    }
+
     if (_isSaving) return;
     setState(() => _isSaving = true);
 
@@ -103,7 +126,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       var request = http.MultipartRequest("POST", uri);
 
       request.fields['user_id'] = widget.userProfile['id'].toString();
-      request.fields['username'] = _usernameController.text;
+      request.fields['display_name'] = _displayNameController.text;
+      request.fields['username'] = _usernameController.text; // Kirim username yang sudah valid
       request.fields['bio'] = _bioController.text;
 
       if (_avatarFile != null) {
@@ -161,12 +185,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: _isSaving ? null : _saveProfile,
+            // 🔥 DISABLE TOMBOL SAVE KALAU ADA ERROR
+            onPressed: (_isSaving || _usernameError != null) ? null : _saveProfile,
             child: _isSaving
                 ? SizedBox(width: 34.w, height: 34.w, child: const CircularProgressIndicator(strokeWidth: 2))
                 : Text(
                     "Save",
-                    style: TextStyle(color: Colors.blue, fontSize: 32.sp, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      // Warnanya jadi abu-abu kalau error/disabled
+                      color: (_usernameError != null) ? Colors.grey : Colors.blue,
+                      fontSize: 32.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
           ),
           SizedBox(width: 20.w),
@@ -184,7 +214,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   clipBehavior: Clip.none,
                   alignment: Alignment.bottomLeft,
                   children: [
-                    // 1. HEADER IMAGE
+                    // HEADER
                     GestureDetector(
                       onTap: _pickHeader,
                       child: AspectRatio(
@@ -202,36 +232,29 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         ),
                       ),
                     ),
+                    // AVATAR
                     Positioned(
                       left: 0,
                       right: 0,
                       bottom: -140.h,
                       child: Center(
-                        child: Stack(
-                          alignment: Alignment.bottomRight,
-                          children: [
-                            // 2. AVATAR UTAMA
-                            GestureDetector(
-                              onTap: _pickAvatar,
-                              child: Container(
-                                padding: EdgeInsets.all(20.r),
-                                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                                child: CircleAvatar(
-                                  radius: avatarRadius,
-                                  backgroundColor: Colors.grey.shade300,
-                                  backgroundImage: _avatarFile != null
-                                      ? FileImage(_avatarFile!)
-                                      : (initialAvatarUrl.isNotEmpty
-                                                ? CachedNetworkImageProvider(initialAvatarUrl)
-                                                : null)
-                                            as ImageProvider?,
-                                  child: (_avatarFile == null && initialAvatarUrl.isEmpty)
-                                      ? Icon(Icons.person, size: avatarRadius, color: Colors.grey)
-                                      : null,
-                                ),
-                              ),
+                        child: GestureDetector(
+                          onTap: _pickAvatar,
+                          child: Container(
+                            padding: EdgeInsets.all(20.r),
+                            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                            child: CircleAvatar(
+                              radius: avatarRadius,
+                              backgroundColor: Colors.grey.shade300,
+                              backgroundImage: _avatarFile != null
+                                  ? FileImage(_avatarFile!)
+                                  : (initialAvatarUrl.isNotEmpty ? CachedNetworkImageProvider(initialAvatarUrl) : null)
+                                        as ImageProvider?,
+                              child: (_avatarFile == null && initialAvatarUrl.isEmpty)
+                                  ? Icon(Icons.person, size: avatarRadius, color: Colors.grey)
+                                  : null,
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -241,8 +264,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
 
             SizedBox(height: 180.h),
-
-            // JUDUL SECTION
             Center(
               child: Column(
                 children: [
@@ -255,7 +276,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ],
               ),
             ),
-
             SizedBox(height: 50.h),
 
             // --- FORM FIELDS ---
@@ -263,8 +283,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
               padding: EdgeInsets.symmetric(horizontal: 50.w),
               child: Column(
                 children: [
-                  _buildRowInput("Username", _usernameController),
+                  // 1. NAME (Bebas, gak perlu validasi)
+                  _buildRowInput("Name", _displayNameController),
+
+                  // 🔥 2. USERNAME (DENGAN VALIDASI & ERROR MESSAGE)
+                  _buildRowInput(
+                    "Username",
+                    _usernameController,
+                    errorText: _usernameError, // Kirim error
+                    onChanged: _validateUsername, // Kirim fungsi validasi
+                  ),
+
+                  // 3. BIO
                   _buildRowInput("Bio", _bioController, maxLines: null),
+
                   SizedBox(height: 100.h),
                 ],
               ),
@@ -275,7 +307,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Widget _buildRowInput(String label, TextEditingController controller, {int? maxLines = 1}) {
+  // 🔥 UPDATE WIDGET BUILDER: TERIMA ERROR & ONCHANGED
+  Widget _buildRowInput(
+    String label,
+    TextEditingController controller, {
+    int? maxLines = 1,
+    String? errorText,
+    Function(String)? onChanged,
+  }) {
     return Container(
       padding: EdgeInsets.symmetric(vertical: 30.h),
       child: Row(
@@ -296,30 +335,48 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
           ),
           Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade300, width: 3.h),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 🔥 JIKA ADA ERROR, TAMPILKAN DI ATAS INPUT (MERAH TEBAL)
+                if (errorText != null)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 10.h),
+                    child: Text(
+                      errorText,
+                      style: TextStyle(color: Colors.red, fontSize: 32.sp, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+
+                // INPUT FIELD
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      // Kalau error, garis bawahnya jadi merah juga
+                      bottom: BorderSide(color: errorText != null ? Colors.red : Colors.grey.shade300, width: 3.h),
+                    ),
+                  ),
+                  child: TextField(
+                    controller: controller,
+                    maxLines: maxLines,
+                    minLines: 1,
+                    onChanged: onChanged, // Hook validasi real-time
+                    style: TextStyle(
+                      fontSize: 40.sp,
+                      color: const Color.fromARGB(255, 0, 0, 0),
+                      fontWeight: FontWeight.w500,
+                      height: 1.5,
+                    ),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.only(bottom: 15.h, top: 10.h),
+                      border: InputBorder.none,
+                      hintText: "Enter $label",
+                      hintStyle: TextStyle(color: Colors.grey.shade400),
+                    ),
+                  ),
                 ),
-              ),
-              child: TextField(
-                controller: controller,
-                maxLines: maxLines,
-                minLines: 1,
-                style: TextStyle(
-                  fontSize: 40.sp,
-                  color: const Color.fromARGB(255, 0, 0, 0),
-                  fontWeight: FontWeight.w500,
-                  height: 1.5,
-                ),
-                decoration: InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.only(bottom: 15.h, top: 10.h),
-                  border: InputBorder.none,
-                  hintText: "Enter $label",
-                  hintStyle: TextStyle(color: Colors.grey.shade400),
-                ),
-              ),
+              ],
             ),
           ),
         ],

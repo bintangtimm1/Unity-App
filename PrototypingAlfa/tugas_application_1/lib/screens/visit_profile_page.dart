@@ -28,8 +28,6 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
   late ScrollController _scrollController;
   bool _showTopBar = false;
   double _headerBlur = 0.0;
-
-  // 🔥 1. KEMBALIKAN LOGIKA HITUNG MANUAL
   double _gridHeight = 0.0;
 
   @override
@@ -77,8 +75,6 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
             _userPosts = jsonDecode(resPosts.body);
             _isFollowing = data['is_following'] ?? false;
             _isLoading = false;
-
-            // 🔥 2. HITUNG TINGGI SETELAH DATA DAPAT
             _calculateGridHeight();
           });
         }
@@ -89,23 +85,13 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
     }
   }
 
-  // 🔥 3. RUMUS MATEMATIKA (MIRIP PROFILE PAGE)
   void _calculateGridHeight() {
     if (_userPosts.isEmpty) {
-      // Kalau kosong, tingginya CUKUP segini aja (misal 500.h).
-      // JANGAN 1.sh (layar penuh), nanti dia jadi bisa discroll jauh padahal kosong.
-      // Dengan 500.h, dia bakal "membal" cantik karena kontennya < layar.
       _gridHeight = 500.h;
     } else {
-      // Hitung tinggi berdasarkan jumlah baris
-      double itemWidth = 1.sw / 3; // Lebar per item
+      double itemWidth = 1.sw / 3;
       int rows = (_userPosts.length / 3).ceil();
-
-      // Rumus: (Total Baris * Tinggi Item) + (Total Gap) + Extra Space Bawah
       _gridHeight = (rows * itemWidth) + (rows * 2.w) + 200.h;
-
-      // Kalo postingan dikit (misal cuma 1 baris), kita paksa minimal 500.h
-      // Supaya background putihnya gak putus mendadak.
       if (_gridHeight < 500.h) _gridHeight = 500.h;
     }
   }
@@ -150,7 +136,10 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
     String headerUrl = _userProfile?['header_url'] ?? "";
     String avatarUrl = _userProfile?['avatar_url'] ?? "";
     String bio = _userProfile?['bio'] ?? "";
-    String displayUsername = _userProfile?['username'] ?? widget.username;
+
+    // 🔥 1. PRIORITASKAN DISPLAY NAME
+    String displayUsername = _userProfile?['display_name'] ?? _userProfile?['username'] ?? widget.username;
+    String rawUsername = _userProfile?['username'] ?? widget.username;
 
     final double headerHeight = 600.h;
     final double maskingTopStart = 300.h;
@@ -190,10 +179,9 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                     controller: _scrollController,
                     physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                     slivers: [
-                      // A. GAP
                       SliverToBoxAdapter(child: SizedBox(height: headerHeight - maskingTopStart - 100.h)),
 
-                      // B. INFO PROFILE
+                      // INFO PROFILE
                       SliverToBoxAdapter(
                         child: Stack(
                           clipBehavior: Clip.none,
@@ -211,6 +199,7 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    // 🔥 NAMA USER (DISPLAY NAME)
                                     Row(
                                       children: [
                                         Flexible(
@@ -223,6 +212,17 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                                         SizedBox(width: 10.w),
                                         VerificationBadge(tier: _userProfile?['tier'] ?? 'regular', size: 50.sp),
                                       ],
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.only(top: 0.h),
+                                      child: Text(
+                                        "@$rawUsername",
+                                        style: TextStyle(
+                                          fontSize: 38.sp,
+                                          color: Colors.grey.shade600,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ),
                                     if (bio.isNotEmpty)
                                       Padding(
@@ -268,6 +268,7 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                                 ),
                               ),
                             ),
+                            // AVATAR
                             Positioned(
                               top: -120.h,
                               left: 80.w,
@@ -281,6 +282,7 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                                 ),
                               ),
                             ),
+                            // FOLLOW BUTTON
                             Positioned(
                               top: 70.h,
                               right: 80.w,
@@ -307,7 +309,7 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                         ),
                       ),
 
-                      // C. STICKY HEADER "CREATIONS"
+                      // STICKY HEADER
                       SliverPersistentHeader(pinned: true, delegate: _CreationsHeaderDelegate()),
                       SliverToBoxAdapter(
                         child: Container(
@@ -326,7 +328,7 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                                 )
                               : GridView.builder(
                                   padding: EdgeInsets.zero,
-                                  physics: const NeverScrollableScrollPhysics(), // Scroll ikut parent
+                                  physics: const NeverScrollableScrollPhysics(),
                                   shrinkWrap: true,
                                   itemCount: _userPosts.length,
                                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -339,13 +341,23 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                                     final post = _userPosts[index];
                                     return InkWell(
                                       onTap: () {
+                                        // 🔥 2. PASS DISPLAY NAME KE DETAIL POST
+                                        // Kita copy listnya dan paksa username-nya jadi Display Name
+                                        List<Map<String, dynamic>> targetPosts = _userPosts
+                                            .map((item) => Map<String, dynamic>.from(item))
+                                            .toList();
+                                        for (var p in targetPosts) {
+                                          p['username'] = displayUsername; // Overwrite username asli dgn display name
+                                          p['avatar_url'] = avatarUrl; // Pastikan avatar juga update
+                                        }
+
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
                                             builder: (_) => DetailPostPage(
                                               title: "Creations",
-                                              username: displayUsername,
-                                              posts: _userPosts,
+                                              username: displayUsername, // Header pakai display name
+                                              posts: targetPosts, // Isi post pakai display name
                                               initialIndex: index,
                                               currentUserId: widget.visitorId,
                                             ),
@@ -363,7 +375,6 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                         ),
                       ),
 
-                      // Extra padding (Opsional, kalau mau ada ruang napas di bawah banget)
                       SliverToBoxAdapter(
                         child: Container(height: 720.h, color: Colors.white),
                       ),
@@ -401,7 +412,7 @@ class _VisitProfilePageState extends State<VisitProfilePage> {
                     Row(
                       children: [
                         Text(
-                          displayUsername,
+                          displayUsername, // 🔥 Top Bar juga pakai Display Name
                           style: TextStyle(fontSize: 50.sp, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                         SizedBox(width: 10.w),
@@ -444,11 +455,9 @@ class _CreationsHeaderDelegate extends SliverPersistentHeaderDelegate {
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       color: Colors.white,
-      // Padding boleh dihapus atau dikecilkan kalau mau benar-benar center tanpa gangguan
       padding: EdgeInsets.symmetric(horizontal: 20.w),
-      alignment: Alignment.center, // Container rata tengah
+      alignment: Alignment.center,
       child: Row(
-        // 🔥 INI KUNCINYA KING! BIAR ITEM DI DALAM ROW JADI TENGAH 🔥
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.grid_view_rounded, size: 60.sp),

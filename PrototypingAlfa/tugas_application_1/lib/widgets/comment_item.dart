@@ -4,8 +4,8 @@ import 'verification_badge.dart';
 
 class CommentItem extends StatefulWidget {
   final Map comment;
-  final int currentUserId; // 🔥 BUTUH INI BUAT CEK PEMILIK
-  final Function(int commentId) onDelete; // 🔥 BUTUH INI BUAT LAPOR KE SHEET
+  final int currentUserId;
+  final Function(int commentId) onDelete;
 
   const CommentItem({super.key, required this.comment, required this.currentUserId, required this.onDelete});
 
@@ -16,7 +16,6 @@ class CommentItem extends StatefulWidget {
 class _CommentItemState extends State<CommentItem> {
   bool _isExpanded = false;
 
-  // 🔥 FUNGSI MUNCULIN MENU DELETE/REPORT 🔥
   void _showOptions() {
     int ownerId = widget.comment['user_id'];
     bool isMine = ownerId == widget.currentUserId;
@@ -31,7 +30,6 @@ class _CommentItemState extends State<CommentItem> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // GARIS INDIKATOR
               Container(
                 width: 100.w,
                 height: 10.h,
@@ -39,9 +37,7 @@ class _CommentItemState extends State<CommentItem> {
               ),
               SizedBox(height: 50.h),
 
-              // PILIHAN MENU
               if (isMine)
-                // --- KASUS 1: KOMENTAR SENDIRI (DELETE) ---
                 ListTile(
                   leading: Icon(Icons.delete_outline, color: Colors.red, size: 50.sp),
                   title: Text(
@@ -49,13 +45,11 @@ class _CommentItemState extends State<CommentItem> {
                     style: TextStyle(fontSize: 35.sp, fontWeight: FontWeight.bold, color: Colors.red),
                   ),
                   onTap: () {
-                    Navigator.pop(context); // Tutup menu dulu
-                    // Panggil fungsi hapus di CommentSheet
+                    Navigator.pop(context);
                     widget.onDelete(widget.comment['id']);
                   },
                 )
               else
-                // --- KASUS 2: KOMENTAR ORANG LAIN (REPORT) ---
                 ListTile(
                   leading: Icon(Icons.flag_outlined, color: Colors.red, size: 50.sp),
                   title: Text(
@@ -76,19 +70,19 @@ class _CommentItemState extends State<CommentItem> {
 
   @override
   Widget build(BuildContext context) {
-    // 🔥🔥🔥 SETINGAN KING (TETAP SAYA PERTAHANKAN) 🔥🔥🔥
-    final double usernameFontSize = 30.sp;
+    // 🔥 AMBIL DISPLAY NAME (Prioritas Display Name, Fallback Username)
+    String displayName = widget.comment['display_name'] ?? widget.comment['username'] ?? "User";
+
     final double commentFontSize = 35.sp;
     final double actionFontSize = 30.sp;
-    final double heartIconTopPadding = 60.h; // Mantap tinggi
+    final double heartIconTopPadding = 60.h;
 
     final TextStyle textStyle = TextStyle(color: Colors.black, fontSize: commentFontSize, height: 1.3);
 
-    // BUNGKUS DENGAN GESTURE DETECTOR BUAT LONG PRESS
     return GestureDetector(
-      onLongPress: _showOptions, // 🔥 TEKAN LAMA DI SINI
+      onLongPress: _showOptions,
       child: Container(
-        color: Colors.transparent, // Biar area kosong kena klik juga
+        color: Colors.transparent,
         padding: EdgeInsets.only(bottom: 40.h),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -111,12 +105,11 @@ class _CommentItemState extends State<CommentItem> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Username
-                  // Username
+                  // Username / Display Name
                   Row(
                     children: [
                       Text(
-                        widget.comment['username'], // 🔥 PAKAI 'widget.'
+                        displayName, // 🔥 PAKAI DISPLAY NAME
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 30.sp),
                       ),
                       SizedBox(width: 4.w),

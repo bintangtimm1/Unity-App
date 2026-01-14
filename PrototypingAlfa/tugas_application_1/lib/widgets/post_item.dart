@@ -133,10 +133,8 @@ class _PostItemState extends State<PostItem> {
     );
   }
 
-  // 🔥 FUNGSI FORMAT WAKTU ALA SOCMED
   String _formatTimeAgo(String? dateString) {
     if (dateString == null || dateString.isEmpty) return "";
-
     try {
       DateTime created = DateTime.parse(dateString);
       DateTime now = DateTime.now();
@@ -154,7 +152,6 @@ class _PostItemState extends State<PostItem> {
         int months = (diff.inDays / 30).floor();
         return "${months} month ago";
       } else {
-        // Format: Month Year (Manual biar gak perlu package intl)
         List<String> months = [
           "January",
           "February",
@@ -172,7 +169,7 @@ class _PostItemState extends State<PostItem> {
         return "${months[created.month - 1]} ${created.year}";
       }
     } catch (e) {
-      return dateString; // Fallback kalau error parsing
+      return dateString;
     }
   }
 
@@ -180,7 +177,10 @@ class _PostItemState extends State<PostItem> {
   Widget build(BuildContext context) {
     if (isDeleted) return const SizedBox.shrink();
 
-    String safeUsername = widget.post['username'] ?? "User";
+    // 🔥 UPDATE UTAMA DI SINI KING!
+    // Prioritaskan Display Name. Kalau null, baru fallback ke Username.
+    String safeUsername = widget.post['display_name'] ?? widget.post['username'] ?? "User";
+
     String safeInitial = safeUsername.isNotEmpty ? safeUsername[0] : "U";
     bool isSquare = widget.post['is_square'] ?? true;
 
@@ -237,7 +237,7 @@ class _PostItemState extends State<PostItem> {
                         children: [
                           Flexible(
                             child: Text(
-                              safeUsername,
+                              safeUsername, // ✅ Pakai Display Name
                               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 45.sp),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -246,7 +246,6 @@ class _PostItemState extends State<PostItem> {
                           VerificationBadge(tier: widget.post['tier'] ?? 'regular', size: 35.sp),
                         ],
                       ),
-                      // LOKASI DI BAWAH USERNAME
                       if (widget.post['location_name'] != null && widget.post['location_name'] != "")
                         Text(
                           widget.post['location_name'],
@@ -342,7 +341,7 @@ class _PostItemState extends State<PostItem> {
                   style: TextStyle(color: Colors.black, fontSize: 35.sp),
                   children: [
                     TextSpan(
-                      text: "$safeUsername ",
+                      text: "$safeUsername ", // ✅ Pakai Display Name
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     TextSpan(text: widget.post['caption'] ?? ""),
@@ -351,9 +350,8 @@ class _PostItemState extends State<PostItem> {
               ),
               SizedBox(height: 8.h),
 
-              // 🔥 IMPLEMENTASI TIME AGO FORMATTER
               Text(
-                _formatTimeAgo(widget.post['created_at']), // PANGGIL FUNGSI DI SINI
+                _formatTimeAgo(widget.post['created_at']),
                 style: TextStyle(fontSize: 25.sp, color: const Color.fromARGB(255, 116, 116, 116)),
               ),
 

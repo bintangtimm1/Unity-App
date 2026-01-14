@@ -30,10 +30,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   bool _showTopBar = false;
   double _gridHeight = 1000.h;
 
-  // Variabel Blur (Default 0 / Bening)
   double _headerBlur = 0.0;
   double _headerOpacity = 0.0;
-
   // ignore: unused_field
   String _headerTitle = "Creations";
 
@@ -43,22 +41,18 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     _tabController = TabController(length: 3, vsync: this);
     _scrollController = ScrollController();
 
-    // 🔥 LOGIKA SCROLL BARU (INSTANT BLUR)
     _scrollController.addListener(() {
-      // Jika scroll sudah lewat 400.h (titik Top Bar muncul)
       if (_scrollController.offset > 400.h && !_showTopBar) {
         setState(() {
           _showTopBar = true;
           _headerBlur = 4.0;
-          _headerOpacity = 0.4; // 🔥 LANGSUNG BLUR TEBAL (ON)
+          _headerOpacity = 0.4;
         });
-      }
-      // Jika scroll balik ke atas (kurang dari 400.h)
-      else if (_scrollController.offset <= 400.h && _showTopBar) {
+      } else if (_scrollController.offset <= 400.h && _showTopBar) {
         setState(() {
           _showTopBar = false;
           _headerBlur = 0.0;
-          _headerOpacity = 0.0; // 🔥 LANGSUNG BENING (OFF)
+          _headerOpacity = 0.0;
         });
       }
     });
@@ -145,12 +139,14 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       return Map<String, dynamic>.from(item);
     }).toList();
 
+    // 🔥 UPDATE: AMBIL DISPLAY NAME
+    String myName = _userProfile!['display_name'] ?? _userProfile!['username'] ?? "User";
+
     if (type == 'creation') {
       String myAvatar = _userProfile!['avatar_url'] ?? "";
-      String myName = _userProfile!['username'] ?? "User";
       for (var post in targetList) {
         post['avatar_url'] ??= myAvatar;
-        post['username'] ??= myName;
+        post['username'] ??= myName; // Gunakan Display Name
         if (post['caption'] == null) {
           post['caption'] = "";
         }
@@ -158,14 +154,13 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     }
 
     String title = (type == 'saved') ? "Saved" : "Creations";
-    String headerUsername = _userProfile!['username'] ?? "User";
 
     final shouldRefresh = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => DetailPostPage(
           title: title,
-          username: headerUsername,
+          username: myName,
           posts: targetList,
           initialIndex: index,
           currentUserId: widget.userId,
@@ -185,7 +180,12 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
     String? headerUrl = _userProfile!['header_url'];
     String? avatarUrl = _userProfile!['avatar_url'];
-    String username = _userProfile!['username'] ?? "User";
+
+    // 🔥 UPDATE UTAMA: PRIORITASKAN DISPLAY NAME
+    // Jika backend mengirim 'display_name', pakai itu. Jika tidak, pakai 'username'.
+    String displayName = _userProfile!['display_name'] ?? _userProfile!['username'] ?? "User";
+    String rawUsername = _userProfile!['username'] ?? "User";
+
     String bio = _userProfile!['bio'] ?? "";
 
     final double headerHeight = 600.h;
@@ -196,14 +196,12 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       body: Stack(
         children: [
-          // LAYER 1: HEADER IMAGE (DINAMIS INSTANT BLUR)
+          // LAYER 1: HEADER IMAGE
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             height: headerHeight,
-
-            // Panggil BlurHeader
             child: BlurHeader(
               imageUrl: headerUrl,
               height: headerHeight,
@@ -239,7 +237,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                           clipBehavior: Clip.none,
                           children: [
                             Container(
-                              margin: EdgeInsets.only(top: 0),
+                              margin: const EdgeInsets.only(top: 0),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.only(
@@ -252,13 +250,13 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // NAMA USER
+                                    // 🔥 NAMA USER (DISPLAY NAME)
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Flexible(
                                           child: Text(
-                                            username,
+                                            displayName, // ✅ Pakai Display Name
                                             style: TextStyle(fontSize: 70.sp, fontWeight: FontWeight.w600),
                                             overflow: TextOverflow.ellipsis,
                                           ),
@@ -267,13 +265,24 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                         VerificationBadge(tier: _userProfile!['tier'] ?? 'regular', size: 60.sp),
                                       ],
                                     ),
+                                    Padding(
+                                      padding: EdgeInsets.only(top: 0.h), // Jarak dikit dari nama
+                                      child: Text(
+                                        "@$rawUsername", // Pakai @ di depan
+                                        style: TextStyle(
+                                          fontSize: 38.sp,
+                                          color: Colors.grey.shade600,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
                                     // BIO
                                     if (bio.isNotEmpty)
                                       Padding(
                                         padding: EdgeInsets.only(top: 15.h),
                                         child: Text(
                                           bio,
-                                          style: TextStyle(color: Colors.grey.shade700, fontSize: 38.sp),
+                                          style: TextStyle(color: const Color.fromARGB(255, 0, 0, 0), fontSize: 38.sp),
                                         ),
                                       ),
                                     SizedBox(height: 50.h),
@@ -333,8 +342,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
                             // TOMBOL EDIT
                             Positioned(
-                              top: 70.h,
-                              right: 80.w,
+                              top: 30.h,
+                              right: 50.w,
                               child: ElevatedButton.icon(
                                 onPressed: () {
                                   final Map<String, dynamic> dataToSend = Map.from(_userProfile!);
@@ -466,12 +475,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
               opacity: _showTopBar ? 1.0 : 0.0,
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 50.w),
-                // Background transparan karena di belakangnya sudah ada BlurHeader
                 color: Colors.transparent,
                 alignment: Alignment.centerLeft,
                 child: Row(
                   children: [
-                    // 1. AVATAR KECIL
                     CircleAvatar(
                       radius: 50.r,
                       backgroundColor: Colors.grey.shade200,
@@ -480,49 +487,37 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                           : null,
                     ),
                     SizedBox(width: 30.w),
-
-                    // 2. USERNAME
+                    // 🔥 TOP BAR NAME (DISPLAY NAME)
                     Text(
-                      username,
+                      displayName, // ✅ Pakai Display Name
                       style: TextStyle(fontSize: 50.sp, fontWeight: FontWeight.w600, color: Colors.white),
                     ),
-
                     SizedBox(width: 15.w),
-                    VerificationBadge(
-                      tier: _userProfile?['tier'] ?? 'regular',
-                      size: 40.sp, // Ukuran disesuaikan biar pas sama teks header
-                    ),
+                    VerificationBadge(tier: _userProfile?['tier'] ?? 'regular', size: 40.sp),
                   ],
                 ),
               ),
             ),
           ),
+
+          // TOMBOL KANAN ATAS
           Positioned(
             top: 180.h,
             right: 100.w,
             child: Row(
               children: [
-                // 1. TOMBOL COURSE
                 GestureDetector(
                   onTap: () {
                     print("Course dipencet");
-                    // Nanti arahkan ke CoursePage di sini
                   },
                   child: Image.asset('assets/images/Course Button.png', width: 70.w, height: 70.w),
                 ),
-
                 SizedBox(width: 50.w),
-
-                // 2. TOMBOL SETTING (SELALU PUTIH)
                 GestureDetector(
                   onTap: () {
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
                   },
-                  child: Icon(
-                    Icons.settings,
-                    size: 70.sp,
-                    color: Colors.white, // Putih statis sesuai request
-                  ),
+                  child: Icon(Icons.settings, size: 70.sp, color: Colors.white),
                 ),
               ],
             ),

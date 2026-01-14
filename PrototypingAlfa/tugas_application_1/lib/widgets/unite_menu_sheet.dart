@@ -3,13 +3,13 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'verification_badge.dart';
-import '../screens/visit_profile_page.dart'; // 🔥 1. IMPORT HALAMAN VISIT
+import '../screens/visit_profile_page.dart';
 
 class UniteMenuSheet extends StatelessWidget {
   final Map message;
   final bool isOwner;
   final bool isAuthor;
-  final int currentUserId; // 🔥 2. TAMBAH VARIABLE INI
+  final int currentUserId;
   final Function() onDelete;
 
   const UniteMenuSheet({
@@ -17,13 +17,15 @@ class UniteMenuSheet extends StatelessWidget {
     required this.message,
     required this.isOwner,
     required this.isAuthor,
-    required this.currentUserId, // 🔥 WAJIB DIISI
+    required this.currentUserId,
     required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
-    String username = message['username'] ?? "User";
+    // 🔥 LOGIKA DISPLAY NAME
+    String displayName = message['display_name'] ?? message['username'] ?? "User";
+
     String avatarUrl = message['avatar_url'] ?? "";
     String tier = message['tier'] ?? 'regular';
     String content = message['content'] ?? "";
@@ -59,7 +61,7 @@ class UniteMenuSheet extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            username,
+                            displayName, // 🔥 PAKAI DISPLAY NAME
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 40.sp),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -116,26 +118,24 @@ class UniteMenuSheet extends StatelessWidget {
                   ),
                 ],
 
-                // 🔥 3. TOMBOL VISIT PROFILE (UPDATE)
+                // 3. TOMBOL VISIT PROFILE
                 if (!isAuthor) ...[
                   Divider(height: 1, color: Colors.grey.shade300),
                   _buildMenuItem(
                     icon: Icons.person_outline_rounded,
-                    label: "About this Member", // Text tetap sama atau mau ganti "Visit Profile"?
+                    label: "About this Member",
                     onTap: () {
-                      Navigator.pop(context); // Tutup menu dulu
+                      Navigator.pop(context);
 
-                      // Ambil ID member dari pesan
                       int memberId = int.tryParse(message['user_id'].toString()) ?? 0;
 
-                      // Navigasi ke Halaman Visit
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => VisitProfilePage(
-                            userId: memberId, // Profil siapa yg mau dilihat
-                            username: username, // Username dia
-                            visitorId: currentUserId, // Kita yg berkunjung
+                            userId: memberId,
+                            username: displayName, // 🔥 Kirim Nama Panggung biar header langsung bener
+                            visitorId: currentUserId,
                           ),
                         ),
                       );
