@@ -5,7 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart'; // Jangan lupa import ini
 import '../config.dart';
 import 'add_community_page.dart';
-import 'community_profile_page.dart'; // 🔥 IMPORT HALAMAN PROFIL
+import 'community_profile_page.dart';
+import 'add_event_page.dart';
 
 class CommunityPage extends StatefulWidget {
   final int userId;
@@ -271,9 +272,7 @@ class _CommunityPageState extends State<CommunityPage> {
           );
           _fetchCommunities();
         } else {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text("Fitur Create Event belum tersedia (Dummy)")));
+          await Navigator.push(context, MaterialPageRoute(builder: (context) => AddEventPage(userId: widget.userId)));
         }
       },
       child: Container(
