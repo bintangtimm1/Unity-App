@@ -4,7 +4,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'verification_badge.dart';
 import 'unite_menu_sheet.dart';
-import '../screens/unite_detail_page.dart'; // 🔥 JANGAN LUPA IMPORT INI
+import '../screens/unite_detail_page.dart';
+import '../screens/unite_reply_page.dart';
 
 class UniteItem extends StatelessWidget {
   final Map message;
@@ -154,7 +155,22 @@ class UniteItem extends StatelessWidget {
                   // FOOTER (ICON REPLY & LOVE)
                   Row(
                     children: [
-                      Icon(Icons.chat_bubble_outline_rounded, size: 40.sp, color: Colors.black),
+                      // 🔥 ICON KOMENTAR JADI TOMBOL NAVIGASI
+                      GestureDetector(
+                        onTap: () async {
+                          // Langsung buka halaman Reply Page (X Style)
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  UniteReplyPage(parentMessage: message, currentUserId: currentUserId),
+                            ),
+                          );
+                          // Opsional: Kalau butuh refresh list luar, bisa tambah logic callback
+                        },
+                        child: Icon(Icons.chat_bubble_outline_rounded, size: 40.sp, color: Colors.black),
+                      ),
+
                       SizedBox(width: 40.w),
                       Icon(Icons.favorite_border, size: 40.sp, color: Colors.black),
                       const Spacer(),
