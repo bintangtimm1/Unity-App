@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import '../widgets/location_input_widget.dart';
 import 'select_organizer_page.dart';
 import 'event_description_page.dart';
 import 'package:http/http.dart' as http;
@@ -21,9 +22,11 @@ class AddEventPage extends StatefulWidget {
 class _AddEventPageState extends State<AddEventPage> {
   // Controller Title
   final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _locationNameController = TextEditingController();
 
   // Simpan text deskripsi
   String _descriptionText = "";
+  String _mapsLink = "";
 
   File? _imageFile;
   Map<String, dynamic>? _selectedCommunity;
@@ -169,7 +172,7 @@ class _AddEventPageState extends State<AddEventPage> {
       request.fields['community_id'] = _selectedCommunity!['id'].toString();
       request.fields['title'] = _titleController.text;
       request.fields['description'] = _descriptionText;
-      request.fields['location'] = "Online";
+      request.fields['location'] = "_locationNameController.text;";
       request.fields['start_time'] = _startDate.toString();
       request.fields['end_time'] = _dueDate.toString();
 
@@ -322,6 +325,23 @@ class _AddEventPageState extends State<AddEventPage> {
                   ),
                 ),
               ),
+            ),
+
+            SizedBox(height: 60.h),
+
+            // --- KOLOM LOKASI MANUAL ---
+            _buildTextInput("Location Name (ex: Plaza Indonesia)", _locationNameController), // Asumsi kamu punya ini
+
+            SizedBox(height: 40.h),
+
+            // 🔥 DISINI KITA TEMPEL WIDGET BARUNYA
+            LocationInputWidget(
+              onLocationChanged: (link) {
+                setState(() {
+                  _mapsLink = link; // Simpan link ke variable utama
+                });
+                print("Link maps tersimpan: $_mapsLink");
+              },
             ),
 
             SizedBox(height: 60.h),
