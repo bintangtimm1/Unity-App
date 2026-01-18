@@ -168,13 +168,30 @@ class _AddEventPageState extends State<AddEventPage> {
       var uri = Uri.parse("${Config.baseUrl}/create_event");
       var request = http.MultipartRequest("POST", uri);
 
+      // --- 🔥 FIX 1: PERBAIKI DATA YANG DIKIRIM ---
+
       request.fields['user_id'] = widget.userId.toString();
       request.fields['community_id'] = _selectedCommunity!['id'].toString();
       request.fields['title'] = _titleController.text;
       request.fields['description'] = _descriptionText;
-      request.fields['location'] = "_locationNameController.text;";
+
+      // ✅ JANGAN PAKAI TANDA KUTIP!
+      // Salah: "_locationNameController.text;"
+      // Benar: _locationNameController.text
+      request.fields['location'] = _locationNameController.text;
+
+      // ✅ KIRIM LINK MAPS (Tadi lupa dikirim)
+      request.fields['maps_link'] = _mapsLink;
+
+      // ✅ KIRIM TANGGAL EVENT
       request.fields['start_time'] = _startDate.toString();
       request.fields['end_time'] = _dueDate.toString();
+
+      // ✅ KIRIM TANGGAL REGISTER (Tadi lupa dikirim, makanya null)
+      request.fields['pre_register_date'] = _preRegDate.toString();
+      request.fields['close_register_date'] = _closeRegDate.toString();
+
+      // -------------------------------------------
 
       if (_imageFile != null) {
         var img = await http.MultipartFile.fromPath("image", _imageFile!.path);

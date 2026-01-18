@@ -3,75 +3,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart'; // 🔥 1. WAJIB IMPORT INI
-import '../config.dart';
-import 'profile_page.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'event_register_page.dart'; // Halaman Register
+import '../widgets/participant_card_.dart'; // 🔥 Halaman Card Baru
 
-class OwnerEventDetailPage extends StatefulWidget {
+class UserEventDetailPage extends StatefulWidget {
   final Map<String, dynamic> eventData;
   final int currentUserId;
 
-  const OwnerEventDetailPage({super.key, required this.eventData, required this.currentUserId});
+  const UserEventDetailPage({super.key, required this.eventData, required this.currentUserId});
 
   @override
-  State<OwnerEventDetailPage> createState() => _OwnerEventDetailPageState();
+  State<UserEventDetailPage> createState() => _UserEventDetailPageState();
 }
 
-class _OwnerEventDetailPageState extends State<OwnerEventDetailPage> {
-  bool _isDeleting = false;
-
-  // --- LOGIC HAPUS EVENT ---
-  Future<void> _deleteEvent() async {
-    bool? confirm = await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          "Delete Event?",
-          style: TextStyle(fontSize: 40.sp, fontWeight: FontWeight.bold),
-        ),
-        content: Text("Are you sure you want to cancel this event? This action cannot be undone."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text("Cancel", style: TextStyle(fontSize: 35.sp)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              "Delete",
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 35.sp),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    setState(() => _isDeleting = true);
-
-    try {
-      final response = await http.post(
-        Uri.parse("${Config.baseUrl}/delete_event"),
-        body: {"user_id": widget.currentUserId.toString(), "event_id": widget.eventData['id'].toString()},
-      );
-
-      if (response.statusCode == 200) {
-        if (mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Event deleted successfully")));
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to delete event")));
-      }
-    } catch (e) {
-      print("Error deleting: $e");
-    } finally {
-      if (mounted) setState(() => _isDeleting = false);
-    }
-  }
-
+class _UserEventDetailPageState extends State<UserEventDetailPage> {
   // --- LOGIC FORMATTING ---
   String _formatDate(String? dateStr) {
     if (dateStr == null || dateStr == "null" || dateStr == "") return "-";
@@ -122,12 +68,10 @@ class _OwnerEventDetailPageState extends State<OwnerEventDetailPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Link copied!"), duration: Duration(seconds: 1)));
   }
 
-  // 🔥 2. FUNGSI BUKA MAPS LANGSUNG
   Future<void> _launchMaps(String link) async {
     if (link.isEmpty) return;
     try {
       final Uri url = Uri.parse(link);
-      // Mode externalApplication biar buka App Google Maps beneran
       if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Could not open maps")));
       }
@@ -143,34 +87,31 @@ class _OwnerEventDetailPageState extends State<OwnerEventDetailPage> {
     String locationName = isOnline ? "This event is held online" : data['location'];
     String mapsLink = data['maps_link'] ?? "";
 
-    if (_isDeleting) {
-      return Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    // 🔥 CEK STATUS JOIN
+    // Backend kirim true/false, tapi kadang string 'true'/'false' atau 1/0
+    bool isJoined = data['is_joined'] == true || data['is_joined'] == 1;
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        centerTitle: true, // 🔥 WAJIB TRUE BIAR TENGAH
+        centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(
           children: [
-            // 1. TULISAN "Event" (Kecil Abu-abu)
             Text(
               "Event",
               style: TextStyle(color: Colors.grey, fontSize: 28.sp, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 5.h), // Jarak dikit
-            // 2. NAMA KOMUNITAS + ICON (Besar Hitam)
+            SizedBox(height: 5.h),
             Row(
-              mainAxisSize: MainAxisSize.min, // Biar Row-nya ngebungkus teks aja (gak full width)
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Flexible(
-                  // Pakai Flexible biar kalau nama panjang dia gak error
                   child: Text(
                     data['community_name'] ?? "Community",
                     maxLines: 1,
@@ -184,26 +125,6 @@ class _OwnerEventDetailPageState extends State<OwnerEventDetailPage> {
             ),
           ],
         ),
-        actions: [
-          PopupMenuButton<String>(
-            icon: Icon(Icons.more_horiz, color: Colors.black),
-            onSelected: (value) {
-              if (value == 'delete') _deleteEvent();
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              PopupMenuItem<String>(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete, color: Colors.red),
-                    SizedBox(width: 10.w),
-                    Text('Delete Event', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(vertical: 30.h, horizontal: 30.w),
@@ -269,20 +190,19 @@ class _OwnerEventDetailPageState extends State<OwnerEventDetailPage> {
                 ),
                 SizedBox(height: 40.h),
 
-                // 3. DESCRIPTION
+                // INFO SECTION
                 Text(
                   "Description",
                   style: TextStyle(fontSize: 38.sp, fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: 20.h),
                 Text(
-                  data['description'] ?? "No description.",
+                  data['description'] ?? "-",
                   textAlign: TextAlign.justify,
                   style: TextStyle(fontSize: 32.sp, color: Colors.grey.shade800, height: 1.5),
                 ),
                 SizedBox(height: 40.h),
 
-                // 4. EVENT TIME
                 Text(
                   "Event Time",
                   style: TextStyle(fontSize: 38.sp, fontWeight: FontWeight.bold),
@@ -292,30 +212,23 @@ class _OwnerEventDetailPageState extends State<OwnerEventDetailPage> {
                 _buildTimeRow("Start", ":   ${_formatDate(data['start_time'])}"),
                 _buildTimeRow("End", ":   ${_formatDate(data['end_time'])}"),
                 _buildTimeRow("Register", ":   ${_getRegisterStatus()}"),
-
                 SizedBox(height: 40.h),
 
-                // 5. LOCATION (UPDATED 🔥)
                 Text(
                   "Event Location",
                   style: TextStyle(fontSize: 38.sp, fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: 20.h),
-
-                // 🔥 WRAP CONTAINER DENGAN GESTURE DETECTOR
                 GestureDetector(
                   onTap: () {
-                    // Kalau ditekan kotaknya, buka Maps
-                    if (!isOnline && mapsLink.isNotEmpty) {
-                      _launchMaps(mapsLink);
-                    }
+                    if (!isOnline && mapsLink.isNotEmpty) _launchMaps(mapsLink);
                   },
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 20.h),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(100.r),
                       border: Border.all(color: Colors.grey.shade300),
-                      color: Colors.white, // Tambah warna biar tap area jelas
+                      color: Colors.white,
                     ),
                     child: Row(
                       children: [
@@ -335,7 +248,6 @@ class _OwnerEventDetailPageState extends State<OwnerEventDetailPage> {
                           ),
                         ),
                         if (!isOnline && mapsLink.isNotEmpty)
-                          // 🔥 TOMBOL COPY LINK (TETAP ADA)
                           GestureDetector(
                             onTap: () => _copyLink(mapsLink),
                             child: Container(
@@ -350,13 +262,11 @@ class _OwnerEventDetailPageState extends State<OwnerEventDetailPage> {
                 ),
                 SizedBox(height: 40.h),
 
-                // 6. ORGANIZER
                 Text(
                   "Organizer",
                   style: TextStyle(fontSize: 38.sp, fontWeight: FontWeight.bold),
                 ),
-                SizedBox(height: 20.h), // Jarak agak jauh dikit dari judul
-                // A. VENDOR
+                SizedBox(height: 20.h),
                 Text(
                   "Vendor",
                   style: TextStyle(fontSize: 30.sp, color: Colors.grey),
@@ -368,9 +278,7 @@ class _OwnerEventDetailPageState extends State<OwnerEventDetailPage> {
                   imageUrl: data['vendor_avatar'],
                   isCommunity: false,
                 ),
-
-                SizedBox(height: 40.h), // Jarak pemisah Vendor & Community
-                // B. COMMUNITY
+                SizedBox(height: 40.h),
                 Text(
                   "Community",
                   style: TextStyle(fontSize: 30.sp, color: Colors.grey),
@@ -382,24 +290,40 @@ class _OwnerEventDetailPageState extends State<OwnerEventDetailPage> {
                   imageUrl: data['community_icon'],
                   isCommunity: true,
                 ),
-
                 SizedBox(height: 60.h),
 
-                SizedBox(height: 60.h),
-
-                // 7. BUTTON
+                // 🔥 TOMBOL DINAMIS (REGISTER / VIEW CARD)
                 SizedBox(
                   width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () {},
-                    style: OutlinedButton.styleFrom(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (isJoined) {
+                        // 🅰️ SUDAH JOIN -> View Participant Card
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => ParticipantCardPage(eventData: data)),
+                        );
+                      } else {
+                        // 🅱️ BELUM JOIN -> Register
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EventRegisterPage(eventData: data, userId: widget.currentUserId),
+                          ),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isJoined ? Colors.white : Colors.blue, // Putih kalau joined, Biru kalau belum
+                      foregroundColor: isJoined ? Colors.blue : Colors.white, // Teks Biru / Putih
                       padding: EdgeInsets.symmetric(vertical: 30.h),
-                      side: BorderSide(color: Colors.blue.shade200),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.r)),
+                      elevation: isJoined ? 5 : 0, // Tombol putih dikasih shadow
+                      side: isJoined ? BorderSide(color: Colors.blue.shade100) : null, // Border tipis buat tombol putih
                     ),
                     child: Text(
-                      "View Participant",
-                      style: TextStyle(fontSize: 36.sp, color: Colors.blue, fontWeight: FontWeight.bold),
+                      isJoined ? "View Participant Card" : "Register Event",
+                      style: TextStyle(fontSize: 36.sp, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -411,6 +335,7 @@ class _OwnerEventDetailPageState extends State<OwnerEventDetailPage> {
     );
   }
 
+  // WIDGET HELPER SAMA
   Widget _buildTimeRow(String label, String value) {
     return Padding(
       padding: EdgeInsets.only(bottom: 10.h),
@@ -435,7 +360,6 @@ class _OwnerEventDetailPageState extends State<OwnerEventDetailPage> {
     );
   }
 
-  // 🔥 VERSI BERSIH: TANPA KOTAK, TANPA KLIK
   Widget _buildOrganizerCard({
     required String name,
     required String subtitle,
@@ -481,7 +405,6 @@ class _OwnerEventDetailPageState extends State<OwnerEventDetailPage> {
             ],
           ),
         ),
-        // ❌ HAPUS ICON PANAH (CHEVRON)
       ],
     );
   }
