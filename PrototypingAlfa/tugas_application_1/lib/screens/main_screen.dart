@@ -5,6 +5,7 @@ import 'home/home_page.dart';
 import 'post/add_post_page.dart';
 import 'profile/profile_page.dart';
 import 'communites/community/community_page.dart';
+import 'search_page.dart';
 
 class MainScreen extends StatefulWidget {
   final String username;
@@ -44,9 +45,7 @@ class _MainScreenState extends State<MainScreen> {
       AddPostPage(userId: widget.userId),
 
       // Index 3: Search
-      const Scaffold(
-        body: Center(child: Text("Halaman Search", style: TextStyle(fontSize: 40))),
-      ),
+      SearchPage(userId: widget.userId),
 
       // Index 4: Profile Page
       ProfilePage(userId: widget.userId),
@@ -70,14 +69,12 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      // 🔥 HAPUS FittedBox & SizedBox(1080, 2424)
-      // Ganti jadi Full Screen Responsif
+      resizeToAvoidBottomInset: false,
       body: SizedBox(
-        width: 1.sw, // 100% Lebar Layar
-        height: 1.sh, // 100% Tinggi Layar
+        width: 1.sw,
+        height: 1.sh,
         child: Stack(
           children: [
-            // Layer Bawah: Konten Halaman
             Positioned.fill(
               child: IndexedStack(index: _currentIndex, children: _pages),
             ),
@@ -85,7 +82,7 @@ class _MainScreenState extends State<MainScreen> {
             // Layer Atas: Navbar
             Positioned(
               left: 0,
-              right: 0, // Tambah Right 0 biar center/full width
+              right: 0,
               bottom: 0,
               child: CustomNavbar(selectedIndex: _currentIndex, onItemTapped: _onItemTapped),
             ),

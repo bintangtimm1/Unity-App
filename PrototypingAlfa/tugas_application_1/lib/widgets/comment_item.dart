@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:cached_network_image/cached_network_image.dart'; // 🔥 JANGAN LUPA IMPORT INI
 import 'verification_badge.dart';
 
 class CommentItem extends StatefulWidget {
@@ -70,8 +71,11 @@ class _CommentItemState extends State<CommentItem> {
 
   @override
   Widget build(BuildContext context) {
-    // 🔥 AMBIL DISPLAY NAME (Prioritas Display Name, Fallback Username)
+    // 1. DATA USER (FLAT)
+    // Kita baca langsung dari root karena backend sudah kita set FLAT
     String displayName = widget.comment['display_name'] ?? widget.comment['username'] ?? "User";
+    String profilePicUrl = widget.comment['profile_pic_url'] ?? "";
+    String tier = widget.comment['tier'] ?? 'regular';
 
     final double commentFontSize = 35.sp;
     final double actionFontSize = 30.sp;
@@ -87,20 +91,30 @@ class _CommentItemState extends State<CommentItem> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Avatar
+            // 2. AVATAR (VERSI KUAT - CACHED NETWORK IMAGE)
+            // Ini logika yang sama persis dengan PostItem
             CircleAvatar(
               radius: 50.r,
               backgroundColor: Colors.grey.shade200,
-              backgroundImage: (widget.comment['profile_pic_url'] != null && widget.comment['profile_pic_url'] != "")
-                  ? NetworkImage(widget.comment['profile_pic_url'])
-                  : null,
-              child: (widget.comment['profile_pic_url'] == null || widget.comment['profile_pic_url'] == "")
-                  ? Icon(Icons.person, color: Colors.grey, size: 50.sp)
-                  : null,
+              child: (profilePicUrl.isNotEmpty)
+                  ? ClipOval(
+                      child: CachedNetworkImage(
+                        imageUrl: profilePicUrl,
+                        fit: BoxFit.cover,
+                        width: 100.r,
+                        height: 100.r,
+                        // Kalau loading, kasih warna abu
+                        placeholder: (context, url) => Container(color: Colors.grey.shade200),
+                        // Kalau error/gagal load, kasih Icon Orang
+                        errorWidget: (context, url, error) => Icon(Icons.person, color: Colors.grey, size: 50.sp),
+                      ),
+                    )
+                  : Icon(Icons.person, color: Colors.grey, size: 50.sp),
             ),
+
             SizedBox(width: 30.w),
 
-            // 2. Konten
+            // 3. KONTEN KOMENTAR
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,11 +123,11 @@ class _CommentItemState extends State<CommentItem> {
                   Row(
                     children: [
                       Text(
-                        displayName, // 🔥 PAKAI DISPLAY NAME
+                        displayName,
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 30.sp),
                       ),
                       SizedBox(width: 4.w),
-                      VerificationBadge(tier: widget.comment['tier'] ?? 'regular', size: 30.sp),
+                      VerificationBadge(tier: tier, size: 30.sp),
                     ],
                   ),
                   SizedBox(height: 0.h),
@@ -174,7 +188,7 @@ class _CommentItemState extends State<CommentItem> {
               ),
             ),
 
-            // 3. Icon Love
+            // 4. ICON LOVE
             SizedBox(width: 20.w),
             Padding(
               padding: EdgeInsets.only(top: heartIconTopPadding),

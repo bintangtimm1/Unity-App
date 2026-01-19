@@ -58,10 +58,12 @@ class _EventParticipantsPageState extends State<EventParticipantsPage> {
   void _showParticipantDetail(Map<String, dynamic> user) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(60.r))),
       builder: (context) {
         return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 20.h),
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 30.h),
           child: Container(
             padding: EdgeInsets.all(40.w),
             child: Column(
@@ -72,16 +74,15 @@ class _EventParticipantsPageState extends State<EventParticipantsPage> {
                   child: Container(
                     width: 100.w,
                     height: 10.h,
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 160, 160, 160),
-                      borderRadius: BorderRadius.circular(10.r),
-                    ),
+                    decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10.r)),
                   ),
                 ),
                 SizedBox(height: 40.h),
-                Text(
-                  "Participant Detail",
-                  style: TextStyle(fontSize: 40.sp, fontWeight: FontWeight.bold),
+                Center(
+                  child: Text(
+                    "Detail",
+                    style: TextStyle(fontSize: 38.sp, fontWeight: FontWeight.w600),
+                  ),
                 ),
                 SizedBox(height: 40.h),
 
@@ -91,7 +92,7 @@ class _EventParticipantsPageState extends State<EventParticipantsPage> {
                 _detailRow(Icons.phone_android, "Phone", user['phone']),
                 _detailRow(Icons.calendar_today, "Registered", _formatDate(user['joined_at'])),
 
-                SizedBox(height: 20.h), // Jarak tambahan di bawah
+                SizedBox(height: 20.h),
               ],
             ),
           ),
@@ -176,7 +177,7 @@ class _EventParticipantsPageState extends State<EventParticipantsPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.person_off_outlined, size: 150.sp, color: Colors.grey.shade300),
+                        Icon(Icons.person_off_outlined, size: 150.sp, color: const Color.fromARGB(255, 255, 255, 255)),
                         SizedBox(height: 20.h),
                         Text(
                           "No participants yet",
@@ -191,7 +192,7 @@ class _EventParticipantsPageState extends State<EventParticipantsPage> {
                     itemCount: _participants.length,
                     separatorBuilder: (_, __) => Divider(
                       height: 1,
-                      color: Colors.grey.shade200,
+                      color: const Color.fromARGB(255, 255, 255, 255),
                       indent: 120.w, // Mulai setelah avatar
                       endIndent: 40.w,
                     ),
