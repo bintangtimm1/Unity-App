@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart'; // 1. IMPORT INI
 import '../widgets/custom_navbar.dart';
-import 'home_page.dart';
-import 'add_post_page.dart';
-import 'profile_page.dart';
-import 'community_page.dart';
+import 'home/home_page.dart';
+import 'post/add_post_page.dart';
+import 'profile/profile_page.dart';
+import 'communites/community/community_page.dart';
 
 class MainScreen extends StatefulWidget {
   final String username;

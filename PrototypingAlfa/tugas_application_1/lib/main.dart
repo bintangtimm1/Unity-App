@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'screens/login_page.dart';
+import 'screens/auth/login_page.dart';
 import 'screens/main_screen.dart';
 import 'screens/admin_dashboard.dart';
 

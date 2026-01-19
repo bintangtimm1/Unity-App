@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:http/http.dart' as http;
 import '../config.dart';
-import '../screens/visit_profile_page.dart';
+import '../screens/profile/visit_profile_page.dart';
 
 class PostOptionsSheet extends StatefulWidget {
   final Map post;

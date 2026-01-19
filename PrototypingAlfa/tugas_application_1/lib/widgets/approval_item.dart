@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../screens/visit_profile_page.dart';
-import '../screens/notification_detail_post_page.dart';
+import '../screens/profile/visit_profile_page.dart';
+import '../screens/home/notification_detail_post_page.dart';
 
 class ApprovalItem extends StatefulWidget {
   final Map postData;

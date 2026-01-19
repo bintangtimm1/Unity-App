@@ -3,7 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'verification_badge.dart';
-import '../screens/visit_profile_page.dart';
+import '../screens/profile/visit_profile_page.dart';
 
 class UniteMenuSheet extends StatelessWidget {
   final Map message;

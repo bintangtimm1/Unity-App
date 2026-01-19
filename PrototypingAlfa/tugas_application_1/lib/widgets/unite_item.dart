@@ -4,8 +4,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'verification_badge.dart';
 import 'unite_menu_sheet.dart';
-import '../screens/unite_detail_page.dart';
-import '../screens/unite_reply_page.dart';
+import '../screens/communites/community/unite_detail_page.dart';
+import '../screens/communites/community/unite_reply_page.dart';
 
 class UniteItem extends StatelessWidget {
   final Map message;
