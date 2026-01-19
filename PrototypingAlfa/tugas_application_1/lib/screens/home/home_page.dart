@@ -5,7 +5,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../config.dart';
 import '../../widgets/post_item.dart';
 import 'notification_page.dart';
-import 'package:flutter/cupertino.dart';
 
 class HomePage extends StatefulWidget {
   final String username;

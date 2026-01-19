@@ -32,7 +32,7 @@ class TagSearchPage extends StatefulWidget {
 }
 
 class _TagSearchPageState extends State<TagSearchPage> {
-  TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   List<UserStub> _searchResults = [];
   List<UserStub> _selectedUsers = [];
   bool _isLoading = false;

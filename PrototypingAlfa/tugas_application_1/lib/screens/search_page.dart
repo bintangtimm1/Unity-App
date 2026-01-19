@@ -27,7 +27,7 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateMixin {
-  TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   // STATE: 'default', 'typing', 'result'
   String _searchState = 'default';
@@ -354,7 +354,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
                     _buildList(
                       _resultPosts,
                       "No posts found",
-                      (item) => Container(height: 100, child: Text("Post ${item['id']}")),
+                      (item) => SizedBox(height: 100, child: Text("Post ${item['id']}")),
                     ),
                     _buildList(
                       _resultCommunities,
@@ -515,13 +515,14 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
   }
 
   Widget _buildList(List data, String emptyMsg, Widget Function(dynamic) itemBuilder) {
-    if (data.isEmpty)
+    if (data.isEmpty) {
       return Center(
         child: Text(
           emptyMsg,
           style: TextStyle(fontSize: 30.sp, color: Colors.grey),
         ),
       );
+    }
     return ListView.builder(itemCount: data.length, itemBuilder: (context, index) => itemBuilder(data[index]));
   }
 }

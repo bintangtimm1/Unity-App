@@ -150,7 +150,7 @@ class _PostItemState extends State<PostItem> {
         return "${diff.inDays} day ago";
       } else if (diff.inDays < 365) {
         int months = (diff.inDays / 30).floor();
-        return "${months} month ago";
+        return "$months month ago";
       } else {
         List<String> months = [
           "January",

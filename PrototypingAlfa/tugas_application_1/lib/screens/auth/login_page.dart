@@ -97,21 +97,24 @@ class _LoginPageState extends State<LoginPage> {
           );
         }
       } else {
-        if (mounted)
+        if (mounted) {
           setState(() {
             _errorMessage = "Username atau Password salah!";
           });
+        }
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _errorMessage = "Gagal konek ke Server!";
         });
+      }
     } finally {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
+      }
     }
   }
 

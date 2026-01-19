@@ -28,9 +28,9 @@ class NotificationItem extends StatelessWidget {
 
     // Pesan berdasarkan tipe
     String message = "";
-    if (type == 'like')
+    if (type == 'like') {
       message = "liked your post.";
-    else if (type == 'comment')
+    } else if (type == 'comment')
       message = "commented: ${notif['message'] ?? ''}";
     else if (type == 'follow')
       message = "started following you.";

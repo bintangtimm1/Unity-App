@@ -7,16 +7,18 @@ class VerificationBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (tier == 'blue')
+    if (tier == 'blue') {
       return Padding(
         padding: const EdgeInsets.only(left: 4),
         child: Icon(Icons.verified, color: Colors.blue, size: size),
       );
-    if (tier == 'gold')
+    }
+    if (tier == 'gold') {
       return Padding(
         padding: const EdgeInsets.only(left: 4),
         child: Icon(Icons.verified, color: Colors.amber, size: size),
       );
+    }
     return const SizedBox.shrink();
   }
 }
